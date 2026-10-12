@@ -1,0 +1,26 @@
+# Node
+node_modules/
+npm-debug.log*
+logs/
+*.log
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Build and tooling output
+dist/
+.angular/
+coverage/
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+db.sqlite3
+
+# OS and editors
+.DS_Store
+.idea/
