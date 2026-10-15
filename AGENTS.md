@@ -24,6 +24,8 @@ College group project (Advanced Web Technology). Work is split one feature per b
 
 "Suggested" means proposed, not confirmed. Ask before adding other major libraries.
 
+Installed versions (check `package.json` and `requirements.txt`): Angular 21 (standalone components, signals, Vitest tests), Express 5, Mongoose 9, Django 6.1 with Django REST Framework. Python 3.12 or newer. Write code for these versions. Do not use Express 4 patterns, NgModules, Karma, or older Mongoose APIs.
+
 ## 3. Architecture rules
 
 1. Angular talks only to Express. It never calls Django.

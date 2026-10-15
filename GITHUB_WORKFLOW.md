@@ -8,7 +8,7 @@ The plan: one repo, one `main` branch that always works, one short branch per fe
 
 ## 1. One-time setup (every member)
 
-Install: Git, Node.js (LTS), Python 3.11+, MongoDB (local) or a free MongoDB Atlas cluster, and Antigravity (or VS Code).
+Install: Git, Node.js (LTS), Python 3.12+, MongoDB (local) or a free MongoDB Atlas cluster, and Antigravity (or VS Code).
 
 Set your Git identity. **The email must be the one on your GitHub account**, or your commits will not show on your GitHub profile and the professor cannot link them to you.
 
