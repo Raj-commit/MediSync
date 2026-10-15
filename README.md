@@ -8,7 +8,10 @@ A web-based telemedicine platform: patients book appointments, attend video cons
 ## Team
 | Name | Roll number | GitHub username |
 |---|---|---|
-| Raj | | Raj-commit |
+| Parmar Hitanshu | 24bt04215 | Hitman0137 |
+| Uday Raj | 24bt04217 | Raj-commit |
+| Patel Alis | 24bt04218 | alis1246 |
+| Riyank Malsatar | 24bt04227 | riyank-max |
 
 ## Run locally
 Copy each `.env.example` to `.env` and fill in real values (never commit `.env`).
