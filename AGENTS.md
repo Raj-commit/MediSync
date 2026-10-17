@@ -45,7 +45,6 @@ Installed versions (check `package.json` and `requirements.txt`): Angular 21 (st
 ```
 medisync/
   AGENTS.md  README.md  .gitignore
-  docs/                     practical reports, diagrams
   frontend/src/app/
     core/                   auth service, guards, interceptors
     shared/                 reusable components, pipes
