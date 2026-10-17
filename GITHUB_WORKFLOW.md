@@ -313,7 +313,6 @@ medisync/
   README.md                 setup instructions and team table
   .gitignore
   .github/pull_request_template.md
-  docs/                     practical reports and diagrams
   frontend/                 Angular app
     src/app/
       core/                 auth service, guards, interceptors
