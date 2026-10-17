@@ -47,7 +47,7 @@ Each person's first PR is real work that unblocks the team. Follow section 4 for
 | P1 | `chore/backend-skeleton` | Create the `backend/src` folders (with `.gitkeep`), Express app, DB connection, health route, error handler, one test | P2 |
 | P2 | `docs/repo-fixes` | Drop in the updated `AGENTS.md`, `GITHUB_WORKFLOW.md` and `TEAM_GUIDE.md`. In `README.md` change `ng serve` to `npm start` and add `TEAM_GUIDE.md` to the Docs line. Fill the Decisions table in `PROGRESS.md` from the agreements in section 1 | P3 |
 | P3 | `chore/ai-service-wiring` | Load `.env` in Django settings, remove the hardcoded key, register DRF and both apps, add URL includes and a health view, add `python-dotenv` and `reportlab` | P4 |
-| P4 | `docs/add-practical-reports` | Add the practical reports and diagrams to `docs/practicals/`. Then create the GitHub Issues for phase 1 (section 8 branches) and a Project board | P1 |
+
 
 Rules for Day 0:
 
