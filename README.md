@@ -17,11 +17,11 @@ A web-based telemedicine platform: patients book appointments, attend video cons
 Copy each `.env.example` to `.env` and fill in real values (never commit `.env`).
 
 ```bash
-cd frontend && npm install && ng serve                  # http://localhost:4200
+cd frontend && npm install && ng start                 # http://localhost:4200
 cd backend && npm install && npm run dev                # http://localhost:5000
 cd ai-service && python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt && python manage.py runserver 8000
 ```
 
 ## Docs
-See `AGENTS.md`, `PROJECT_CONTEXT.md`, `PROGRESS.md` and `GITHUB_WORKFLOW.md`.
+See `AGENTS.md`, `PROJECT_CONTEXT.md`, `PROGRESS.md`, `TEAM_GUIDE.md` and `GITHUB_WORKFLOW.md`.
