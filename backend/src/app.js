@@ -1,15 +1,25 @@
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
+const notFound = require('./middleware/notFound');
+const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
 app.use(helmet());
+
+// Only the Angular app may call the API from a browser. If CLIENT_URL is not
+// set, `false` sends no CORS headers at all, so no origin is allowed.
 app.use(cors({ origin: process.env.CLIENT_URL || false }));
+
 app.use(express.json());
 
 app.get('/api/v1/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+// Must stay last: anything no route handled ends up here.
+app.use(notFound);
+app.use(errorHandler);
 
 module.exports = app;
