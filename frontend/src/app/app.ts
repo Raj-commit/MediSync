@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { Router, RouterOutlet } from '@angular/router';
 
+import { AuthService } from './core/auth/auth.service';
 import { Navbar } from './shared/navbar/navbar';
 
 @Component({
@@ -9,4 +10,12 @@ import { Navbar } from './shared/navbar/navbar';
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
-export class App {}
+export class App {
+  protected readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+
+  protected onLogout(): void {
+    this.auth.logout();
+    this.router.navigateByUrl('/login');
+  }
+}

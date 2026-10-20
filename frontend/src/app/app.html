@@ -1,4 +1,4 @@
-<app-navbar />
+<app-navbar [isLoggedIn]="auth.isLoggedIn()" (logout)="onLogout()" />
 <main class="container">
   <router-outlet />
 </main>
