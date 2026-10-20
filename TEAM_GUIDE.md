@@ -67,7 +67,7 @@ Names come from the README team table, in that order. Suggested only, swap freel
 | P1 | Parmar Hitanshu | Hitman0137 | `chore/backend-skeleton` | `feature/auth-api` |
 | P2 | Uday Raj | Raj-commit | `docs/repo-fixes` | `feature/auth-ui` |
 | P3 | Patel Alis | alis1246 | `chore/ai-service-wiring` | `feature/prescription-pdf` |
-| P4 | Riyank Malsatar | riyank-max | `docs/add-practical-reports` | `feature/symptom-checker-ai` |
+| P4 | Riyank Malsatar | riyank-max | `none (Issues and Project board only)` | `feature/symptom-checker-ai` |
 
 Phase 2 starts once auth is merged. See section 11 for the full schedule. Auth is the bottleneck, so P1 merges `auth-api` in small PRs within 2 to 3 days so P2 can connect the UI.
 
@@ -506,10 +506,9 @@ Do not build any feature. Plan first, then one step at a time, stop after each.
 Do not run git commit or git push.
 ```
 
-**P4: `docs/add-practical-reports`** (no prompt needed)
+**P4: GitHub Issues and Project board** (no branch, no prompt needed)
 
-1. Put the practical reports and diagrams in `docs/practicals/`.
-2. On GitHub, create one Issue per phase 1 branch (`feature/auth-api (FR-01 to FR-04)`, `feature/auth-ui`, `feature/prescription-pdf (FR-15)`, `feature/symptom-checker-ai (FR-17)`), assign owners, and add a Project board (Backlog, In progress, In review, Done).
+1. On GitHub, create one Issue per phase 1 branch (`feature/auth-api (FR-01 to FR-04)`, `feature/auth-ui`, `feature/prescription-pdf (FR-15)`, `feature/symptom-checker-ai (FR-17)`), assign owners, and add a Project board (Backlog, In progress, In review, Done).
 
 ### 8.2 P1: `feature/auth-api`
 
