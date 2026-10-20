@@ -2,7 +2,7 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: (date)  by: (name)
+Last updated: 2026-10-18  by: Uday Raj
 
 ## Current work
 
@@ -40,8 +40,15 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 
 | Date | Decision | Why |
 |---|---|---|
-| | Symptom checker model or service: undecided | |
-| | PDF library and storage: undecided | |
+| 2026-10-15 | Login response is `{ token, user: { id, name, email, role } }` | TEAM_GUIDE section 1 |
+| 2026-10-15 | Token sent as `Authorization: Bearer <token>`, stored in localStorage, expires in 1 day | TEAM_GUIDE section 1 |
+| 2026-10-15 | Registration is patient and doctor only. Admin is created by a seed script. Doctors are active immediately | TEAM_GUIDE section 1 |
+| 2026-10-15 | Password minimum is 8 characters | TEAM_GUIDE section 1 |
+| 2026-10-15 | Appointment slot is 30 minutes, future dates only | TEAM_GUIDE section 1 |
+| 2026-10-15 | Cancel or reschedule allowed until 1 hour before the start | TEAM_GUIDE section 1 |
+| 2026-10-15 | PDF library is ReportLab (storage still undecided) | TEAM_GUIDE section 1 |
+| 2026-10-15 | Symptom checker: rule-based stub first, real LLM call later, in its own module (`symptom_checker/engine.py`) | TEAM_GUIDE section 1 |
+| 2026-10-15 | MongoDB: each person uses their own local database while developing | TEAM_GUIDE section 1 |
 | | Refresh tokens: undecided | |
 | | TURN server: undecided | |
 | | Deployment target: undecided | |
