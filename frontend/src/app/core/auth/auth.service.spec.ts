@@ -3,24 +3,32 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { environment } from '../../../environments/environment';
-import { LoginResponse, RegisterRequest } from './auth.models';
+import { AuthUser, LoginResponse, RegisterRequest } from './auth.models';
 import { AuthService } from './auth.service';
+import { fakeJwt } from './testing';
+
+const USER: AuthUser = { id: '1', name: 'Asha Patel', email: 'asha@example.com', role: 'patient' };
 
 describe('AuthService', () => {
-  let service: AuthService;
   let http: HttpTestingController;
 
-  beforeEach(() => {
+  function createService(): AuthService {
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
-    service = TestBed.inject(AuthService);
     http = TestBed.inject(HttpTestingController);
+    return TestBed.inject(AuthService);
+  }
+
+  beforeEach(() => localStorage.clear());
+
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
   });
 
-  afterEach(() => http.verify());
-
   it('posts the registration to /auth/register', () => {
+    const service = createService();
     const request: RegisterRequest = {
       role: 'patient',
       name: 'Asha Patel',
@@ -39,11 +47,19 @@ describe('AuthService', () => {
     call.flush({});
   });
 
-  it('posts the credentials to /auth/login and returns the response', () => {
-    const response: LoginResponse = {
-      token: 'jwt-token',
-      user: { id: '1', name: 'Asha Patel', email: 'asha@example.com', role: 'patient' },
-    };
+  it('starts logged out when nothing is stored', () => {
+    const service = createService();
+
+    expect(service.isLoggedIn()).toBe(false);
+    expect(service.token()).toBeNull();
+    expect(service.user()).toBeNull();
+    expect(service.role()).toBeNull();
+  });
+
+  it('posts the credentials, stores the session and exposes it', () => {
+    const service = createService();
+    const token = fakeJwt(3600);
+    const response: LoginResponse = { token, user: USER };
     let received: LoginResponse | undefined;
 
     service
@@ -56,5 +72,69 @@ describe('AuthService', () => {
     call.flush(response);
 
     expect(received).toEqual(response);
+    expect(service.isLoggedIn()).toBe(true);
+    expect(service.token()).toBe(token);
+    expect(service.user()).toEqual(USER);
+    expect(service.role()).toBe('patient');
+    expect(localStorage.getItem('medisync.token')).toBe(token);
+    expect(JSON.parse(localStorage.getItem('medisync.user')!)).toEqual(USER);
+  });
+
+  it('does not store anything when the login fails', () => {
+    const service = createService();
+
+    service.login({ email: 'asha@example.com', password: 'wrong' }).subscribe({ error: () => {} });
+    http
+      .expectOne(`${environment.apiUrl}/auth/login`)
+      .flush({ message: 'Invalid email or password' }, { status: 401, statusText: 'Unauthorized' });
+
+    expect(service.isLoggedIn()).toBe(false);
+    expect(localStorage.getItem('medisync.token')).toBeNull();
+  });
+
+  it('clears the session and storage on logout', () => {
+    const service = createService();
+    service.login({ email: 'asha@example.com', password: 'password123' }).subscribe();
+    http.expectOne(`${environment.apiUrl}/auth/login`).flush({ token: fakeJwt(3600), user: USER });
+
+    service.logout();
+
+    expect(service.isLoggedIn()).toBe(false);
+    expect(service.token()).toBeNull();
+    expect(localStorage.getItem('medisync.token')).toBeNull();
+    expect(localStorage.getItem('medisync.user')).toBeNull();
+  });
+
+  it('restores a stored session after a reload', () => {
+    const token = fakeJwt(3600);
+    localStorage.setItem('medisync.token', token);
+    localStorage.setItem('medisync.user', JSON.stringify(USER));
+
+    const service = createService();
+
+    expect(service.isLoggedIn()).toBe(true);
+    expect(service.token()).toBe(token);
+    expect(service.user()).toEqual(USER);
+  });
+
+  it('drops a stored session whose token has expired', () => {
+    localStorage.setItem('medisync.token', fakeJwt(-60));
+    localStorage.setItem('medisync.user', JSON.stringify(USER));
+
+    const service = createService();
+
+    expect(service.isLoggedIn()).toBe(false);
+    expect(localStorage.getItem('medisync.token')).toBeNull();
+    expect(localStorage.getItem('medisync.user')).toBeNull();
+  });
+
+  it('drops stored data that is damaged', () => {
+    localStorage.setItem('medisync.token', fakeJwt(3600));
+    localStorage.setItem('medisync.user', '{not json');
+
+    const service = createService();
+
+    expect(service.isLoggedIn()).toBe(false);
+    expect(localStorage.getItem('medisync.user')).toBeNull();
   });
 });

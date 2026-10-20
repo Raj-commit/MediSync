@@ -27,13 +27,15 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+}
+
 // Login response agreed in PROGRESS.md: { token, user: { id, name, email, role } }
 export interface LoginResponse {
   token: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    role: Role;
-  };
+  user: AuthUser;
 }
