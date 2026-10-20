@@ -116,3 +116,7 @@ img {
   outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
+
+.card form > .error {
+  margin-bottom: 1rem;
+}

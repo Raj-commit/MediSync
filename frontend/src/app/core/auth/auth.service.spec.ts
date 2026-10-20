@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { environment } from '../../../environments/environment';
-import { RegisterRequest } from './auth.models';
+import { LoginResponse, RegisterRequest } from './auth.models';
 import { AuthService } from './auth.service';
 
 describe('AuthService', () => {
@@ -37,5 +37,24 @@ describe('AuthService', () => {
     expect(call.request.method).toBe('POST');
     expect(call.request.body).toEqual(request);
     call.flush({});
+  });
+
+  it('posts the credentials to /auth/login and returns the response', () => {
+    const response: LoginResponse = {
+      token: 'jwt-token',
+      user: { id: '1', name: 'Asha Patel', email: 'asha@example.com', role: 'patient' },
+    };
+    let received: LoginResponse | undefined;
+
+    service
+      .login({ email: 'asha@example.com', password: 'password123' })
+      .subscribe((r) => (received = r));
+
+    const call = http.expectOne(`${environment.apiUrl}/auth/login`);
+    expect(call.request.method).toBe('POST');
+    expect(call.request.body).toEqual({ email: 'asha@example.com', password: 'password123' });
+    call.flush(response);
+
+    expect(received).toEqual(response);
   });
 });

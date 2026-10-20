@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { RegisterRequest } from './auth.models';
+import { LoginRequest, LoginResponse, RegisterRequest } from './auth.models';
 
 @Injectable({
   providedIn: 'root',
@@ -14,5 +14,9 @@ export class AuthService {
 
   register(request: RegisterRequest): Observable<unknown> {
     return this.http.post(`${this.baseUrl}/register`, request);
+  }
+
+  login(request: LoginRequest): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.baseUrl}/login`, request);
   }
 }

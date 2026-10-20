@@ -19,3 +19,21 @@ export interface DoctorRegistration extends BaseRegistration {
 
 // Admins never self-register, so only patient and doctor are allowed here.
 export type RegisterRequest = PatientRegistration | DoctorRegistration;
+
+export type Role = 'patient' | 'doctor' | 'admin';
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+// Login response agreed in PROGRESS.md: { token, user: { id, name, email, role } }
+export interface LoginResponse {
+  token: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: Role;
+  };
+}
