@@ -10,7 +10,7 @@ function getSecret() {
 }
 
 // `sub` (subject) holds the user id. The role is included for convenience, but
-// the server always loads the real role from the database (see step 4).
+// the server always loads the real role from the database (see auth middleware).
 function signToken(user) {
   return jwt.sign({ role: user.role }, getSecret(), {
     subject: user._id.toString(),
@@ -18,4 +18,11 @@ function signToken(user) {
   });
 }
 
-module.exports = { signToken };
+// Throws a JsonWebTokenError (or TokenExpiredError) if the token is fake,
+// changed, or expired. Only HS256 is accepted, so nobody can sneak in a token
+// that claims to need no signature ("alg: none").
+function verifyToken(token) {
+  return jwt.verify(token, getSecret(), { algorithms: ['HS256'] });
+}
+
+module.exports = { signToken, verifyToken };
