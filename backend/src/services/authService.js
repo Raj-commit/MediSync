@@ -87,4 +87,10 @@ async function login(body) {
   return { token: signToken(user), user: toPublicUser(user) };
 }
 
-module.exports = { register, login };
+// The auth middleware already loaded the user from the database, so there is
+// nothing to look up here. We only choose which fields may be sent back.
+function getMe(user) {
+  return toPublicUser(user);
+}
+
+module.exports = { register, login, getMe };

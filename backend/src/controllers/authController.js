@@ -13,4 +13,9 @@ async function login(req, res) {
   res.json(result);
 }
 
-module.exports = { register, login };
+// req.user is set by the authenticate middleware.
+function me(req, res) {
+  res.json({ user: authService.getMe(req.user) });
+}
+
+module.exports = { register, login, me };
