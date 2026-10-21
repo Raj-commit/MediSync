@@ -74,4 +74,52 @@ describe('App', () => {
     expect(router.url).toBe('/login');
     expect(page.querySelector('app-navbar')!.textContent).toContain('Login');
   });
+
+  describe('role-protected pages', () => {
+    function logInAs(role: string) {
+      localStorage.setItem('medisync.token', fakeJwt(3600));
+      localStorage.setItem(
+        'medisync.user',
+        JSON.stringify({ id: '1', name: 'Asha Patel', email: 'asha@example.com', role }),
+      );
+    }
+
+    async function visit(url: string) {
+      const fixture = TestBed.createComponent(App);
+      const router = TestBed.inject(Router);
+      await router.navigateByUrl(url);
+      await fixture.whenStable();
+      return { router, page: fixture.nativeElement as HTMLElement };
+    }
+
+    it('sends a logged-out visitor from a dashboard to /login', async () => {
+      const { router, page } = await visit('/admin');
+
+      expect(router.url).toBe('/login');
+      expect(page.querySelector('main h1')?.textContent).toContain('Log in');
+    });
+
+    it('shows the dashboard that matches the role', async () => {
+      logInAs('doctor');
+      const { router, page } = await visit('/doctor');
+
+      expect(router.url).toBe('/doctor');
+      expect(page.querySelector('main h1')?.textContent).toContain('Doctor dashboard');
+    });
+
+    it('redirects a patient who opens the doctor dashboard to /patient', async () => {
+      logInAs('patient');
+      const { router, page } = await visit('/doctor');
+
+      expect(router.url).toBe('/patient');
+      expect(page.querySelector('main h1')?.textContent).toContain('Patient dashboard');
+    });
+
+    it('keeps admin pages away from doctors', async () => {
+      logInAs('doctor');
+      const { router } = await visit('/admin');
+
+      expect(router.url).toBe('/doctor');
+    });
+  });
 });
