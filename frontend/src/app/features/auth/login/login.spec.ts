@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 
 import { environment } from '../../../../environments/environment';
+import { fakeJwt } from '../../../core/auth/testing';
 import { Login } from './login';
 
 const LOGIN_URL = `${environment.apiUrl}/auth/login`;
@@ -27,7 +28,10 @@ describe('Login', () => {
     await fixture.whenStable();
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
 
   async function type(selector: string, value: string) {
     const field = page.querySelector<HTMLInputElement>(selector)!;
@@ -58,7 +62,7 @@ describe('Login', () => {
     http.expectNone(LOGIN_URL);
   });
 
-  it('sends the credentials and goes to the home page on success', async () => {
+  it('sends the credentials and opens the patient dashboard on success', async () => {
     const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
     await type('#email', ' asha@example.com ');
     await type('#password', 'password123');
@@ -68,11 +72,28 @@ describe('Login', () => {
     expect(call.request.method).toBe('POST');
     expect(call.request.body).toEqual({ email: 'asha@example.com', password: 'password123' });
     call.flush({
-      token: 'jwt-token',
+      token: fakeJwt(3600),
       user: { id: '1', name: 'Asha Patel', email: 'asha@example.com', role: 'patient' },
     });
 
-    expect(navigate).toHaveBeenCalledWith('/');
+    expect(navigate).toHaveBeenCalledWith('/patient');
+  });
+
+  it.each([
+    ['doctor', '/doctor'],
+    ['admin', '/admin'],
+  ])('opens the %s dashboard after login', async (role, path) => {
+    const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+    await type('#email', 'user@example.com');
+    await type('#password', 'password123');
+    await submit();
+
+    http.expectOne(LOGIN_URL).flush({
+      token: fakeJwt(3600),
+      user: { id: '2', name: 'User', email: 'user@example.com', role },
+    });
+
+    expect(navigate).toHaveBeenCalledWith(path);
   });
 
   it('disables the button while the request is running', async () => {

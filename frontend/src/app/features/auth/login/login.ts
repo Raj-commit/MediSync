@@ -4,6 +4,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../core/auth/auth.service';
+import { dashboardPathFor } from '../../../core/auth/dashboard-path';
 
 @Component({
   selector: 'app-login',
@@ -41,9 +42,9 @@ export class Login {
     const { email, password } = this.form.getRawValue();
 
     this.auth.login({ email: email.trim(), password }).subscribe({
-      next: () => {
+      next: ({ user }) => {
         this.submitting.set(false);
-        this.router.navigateByUrl('/');
+        this.router.navigateByUrl(dashboardPathFor(user.role));
       },
       error: (error: HttpErrorResponse) => {
         this.submitting.set(false);
