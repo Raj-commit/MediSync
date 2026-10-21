@@ -1,0 +1,11 @@
+<header class="navbar">
+  <a class="brand" routerLink="/">MediSync</a>
+  <nav class="links" aria-label="Main">
+    @if (isLoggedIn()) {
+      <button type="button" class="logout" (click)="logout.emit()">Logout</button>
+    } @else {
+      <a routerLink="/login" routerLinkActive="active">Login</a>
+      <a routerLink="/register" routerLinkActive="active">Register</a>
+    }
+  </nav>
+</header>

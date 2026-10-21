@@ -1,0 +1,141 @@
+<section class="card">
+  @if (registered()) {
+    <h1>Account created</h1>
+    <p>Your account is ready. You can now log in.</p>
+    <a class="button" routerLink="/login">Go to login</a>
+  } @else {
+    <h1>Create an account</h1>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <fieldset class="roles">
+        <legend>I am a</legend>
+        <label><input type="radio" formControlName="role" value="patient" /> Patient</label>
+        <label><input type="radio" formControlName="role" value="doctor" /> Doctor</label>
+      </fieldset>
+
+      <div class="field">
+        <label for="name">Full name</label>
+        <input id="name" type="text" formControlName="name" autocomplete="name" />
+        @if (hasError('name', 'required')) {
+          <p class="error">Name is required.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" formControlName="email" autocomplete="email" />
+        @if (hasError('email', 'required')) {
+          <p class="error">Email is required.</p>
+        }
+        @if (hasError('email', 'email')) {
+          <p class="error">Enter a valid email address.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="phone">Phone</label>
+        <input id="phone" type="tel" formControlName="phone" autocomplete="tel" />
+        @if (hasError('phone', 'required')) {
+          <p class="error">Phone number is required.</p>
+        }
+        @if (hasError('phone', 'pattern')) {
+          <p class="error">Enter a valid phone number.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          autocomplete="new-password"
+        />
+        @if (hasError('password', 'required')) {
+          <p class="error">Password is required.</p>
+        }
+        @if (hasError('password', 'minlength')) {
+          <p class="error">Use at least 8 characters.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="confirmPassword">Confirm password</label>
+        <input
+          id="confirmPassword"
+          type="password"
+          formControlName="confirmPassword"
+          autocomplete="new-password"
+        />
+        @if (hasError('confirmPassword', 'required')) {
+          <p class="error">Please confirm your password.</p>
+        } @else if (passwordsDiffer()) {
+          <p class="error">Passwords do not match.</p>
+        }
+      </div>
+
+      @if (role() === 'patient') {
+        <div class="field">
+          <label for="dateOfBirth">Date of birth</label>
+          <input id="dateOfBirth" type="date" formControlName="dateOfBirth" [max]="maxBirthDate" />
+          @if (hasError('dateOfBirth', 'required')) {
+            <p class="error">Date of birth is required.</p>
+          }
+          @if (hasError('dateOfBirth', 'future')) {
+            <p class="error">Date of birth cannot be in the future.</p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="address">Address</label>
+          <textarea
+            id="address"
+            rows="3"
+            formControlName="address"
+            autocomplete="street-address"
+          ></textarea>
+          @if (hasError('address', 'required')) {
+            <p class="error">Address is required.</p>
+          }
+        </div>
+      } @else {
+        <div class="field">
+          <label for="specialisations">Specialisations</label>
+          <input
+            id="specialisations"
+            type="text"
+            formControlName="specialisations"
+            placeholder="For example: Cardiology, Internal medicine"
+          />
+          <p class="hint">Separate several with commas.</p>
+          @if (hasError('specialisations', 'required') || hasError('specialisations', 'pattern')) {
+            <p class="error">Enter at least one specialisation.</p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="qualification">Qualification</label>
+          <input
+            id="qualification"
+            type="text"
+            formControlName="qualification"
+            placeholder="For example: MBBS, MD"
+          />
+          @if (hasError('qualification', 'required')) {
+            <p class="error">Qualification is required.</p>
+          }
+        </div>
+      }
+
+      @if (serverError(); as message) {
+        <p class="error" role="alert">{{ message }}</p>
+      }
+
+      <button type="submit" class="button" [disabled]="submitting()">
+        {{ submitting() ? 'Creating account...' : 'Create account' }}
+      </button>
+    </form>
+
+    <p class="alt">Already have an account? <a routerLink="/login">Log in</a></p>
+  }
+</section>
