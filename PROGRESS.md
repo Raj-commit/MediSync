@@ -2,15 +2,15 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-18  by: Uday Raj
+Last updated: 2026-10-21  by: Uday Raj
 
 ## Current work
 
-- Branch:
-- Feature:
-- Last thing finished:
-- Next step:
-- Blockers or open questions:
+- Branch: none open. `feature/auth-ui` was merged in PR #12
+- Feature: auth
+- Last thing finished: auth UI (app shell, register, login, session with Bearer interceptor, role guards, empty dashboards)
+- Next step: `feature/auth-api` (FR-01 to FR-04), see TEAM_GUIDE section 8.2
+- Blockers or open questions: register and login in the UI cannot work end to end until auth-api is merged
 
 ## Feature status
 
@@ -18,8 +18,8 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 
 | # | Feature | API | UI | Owner | Notes |
 |---|---|---|---|---|---|
-| 1 | project-setup | not started | n/a | | |
-| 2 | auth | not started | not started | | |
+| 1 | project-setup | done | n/a | Team | Backend skeleton, Django wiring and frontend shell are on main |
+| 2 | auth | not started | done | Hitanshu (API), Uday Raj (UI) | UI merged in PR #12. API is next, the UI already follows the contract in Decisions |
 | 3 | profiles | not started | not started | | |
 | 4 | doctor-availability | not started | not started | | |
 | 5 | appointment-booking | not started | not started | | |
@@ -49,6 +49,9 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-15 | PDF library is ReportLab (storage still undecided) | TEAM_GUIDE section 1 |
 | 2026-10-15 | Symptom checker: rule-based stub first, real LLM call later, in its own module (`symptom_checker/engine.py`) | TEAM_GUIDE section 1 |
 | 2026-10-15 | MongoDB: each person uses their own local database while developing | TEAM_GUIDE section 1 |
+| 2026-10-21 | Register request body: `role` (patient or doctor), `name`, `email`, `phone`, `password`; patient adds `dateOfBirth` (YYYY-MM-DD) and `address`; doctor adds `specialisations` (array of strings) and `qualification` | The UI sends exactly this, field names follow the data model in AGENTS.md section 5 |
+| 2026-10-21 | Login request body is `{ email, password }`. Errors are `{ message, code }`, and the UI shows `message` to the user as written, so messages must be safe to display | Frontend and API agree on one error shape |
+| 2026-10-21 | After login the UI opens `/patient`, `/doctor` or `/admin` by role. The UI guards only hide screens, so the API must check the role on every request | Defence stays on the server |
 | | Refresh tokens: undecided | |
 | | TURN server: undecided | |
 | | Deployment target: undecided | |
@@ -61,7 +64,7 @@ List anything built differently from the plan (changed endpoint, renamed field),
 
 ## Known issues
 
--
+- A logged-in user can still open `/login` and `/register` by typing the address. They are not redirected to their dashboard yet.
 
 ## How to hand over to another AI
 
