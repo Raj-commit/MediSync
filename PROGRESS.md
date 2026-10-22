@@ -6,11 +6,11 @@ Last updated: 2026-10-21  by: Uday Raj
 
 ## Current work
 
-- Branch: none open. `feature/auth-ui` was merged in PR #12
+- Branch: `feature/auth-api` (pushed, PR open, not merged yet)
 - Feature: auth
-- Last thing finished: auth UI (app shell, register, login, session with Bearer interceptor, role guards, empty dashboards)
-- Next step: `feature/auth-api` (FR-01 to FR-04), see TEAM_GUIDE section 8.2
-- Blockers or open questions: register and login in the UI cannot work end to end until auth-api is merged
+- Last thing finished: auth API (register, login, me, auth and requireRole middleware, seed-admin script, tests)
+- Next step: review and merge the `feature/auth-api` PR, then start the next feature (profiles)
+- Blockers or open questions: after merge, each teammate must add ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_PHONE and MONGODB_URI_TEST to their own backend/.env and run `node scripts/seed-admin.js` once
 
 ## Feature status
 
@@ -19,7 +19,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | # | Feature | API | UI | Owner | Notes |
 |---|---|---|---|---|---|
 | 1 | project-setup | done | n/a | Team | Backend skeleton, Django wiring and frontend shell are on main |
-| 2 | auth | not started | done | Hitanshu (API), Uday Raj (UI) | UI merged in PR #12. API is next, the UI already follows the contract in Decisions |
+| 2 | auth | in review | done | Alis (API), Uday Raj (UI) | API on feature/auth-api (PR open). UI merged in PR #12. Seed the admin with node scripts/seed-admin.js |
 | 3 | profiles | not started | not started | | |
 | 4 | doctor-availability | not started | not started | | |
 | 5 | appointment-booking | not started | not started | | |
@@ -52,19 +52,26 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-21 | Register request body: `role` (patient or doctor), `name`, `email`, `phone`, `password`; patient adds `dateOfBirth` (YYYY-MM-DD) and `address`; doctor adds `specialisations` (array of strings) and `qualification` | The UI sends exactly this, field names follow the data model in AGENTS.md section 5 |
 | 2026-10-21 | Login request body is `{ email, password }`. Errors are `{ message, code }`, and the UI shows `message` to the user as written, so messages must be safe to display | Frontend and API agree on one error shape |
 | 2026-10-21 | After login the UI opens `/patient`, `/doctor` or `/admin` by role. The UI guards only hide screens, so the API must check the role on every request | Defence stays on the server |
+| 2026-10-22 | `GET /api/v1/auth/me` returns `{ user: { id, name, email, role } }` | The UI contract did not say. Kept minimal, full profile data belongs to the profiles feature |
+| 2026-10-22 | Auth middleware loads the user from the database on every request. The role always comes from the database, never from the token. A disabled or deleted user is rejected at once | Role is checked on the server (AGENTS.md). Disabling an account takes effect immediately |
+| 2026-10-22 | Error codes: `INVALID_CREDENTIALS` 401, `UNAUTHORIZED` 401 (no token), `INVALID_TOKEN` 401 (bad or expired token), `FORBIDDEN` 403, `ACCOUNT_DISABLED` 403, `EMAIL_TAKEN` 409, `VALIDATION_ERROR` 400, `INVALID_JSON` 400, `TOO_MANY_ATTEMPTS` 429. Register answers 201 with `{ user }`. Login allows 10 failed attempts per 15 minutes | Shared codes for the UI and later features |
+| 2026-10-22 | Backend tests use a separate database from `MONGODB_URI_TEST`. Its name must end with `_test`. Jest runs with `--runInBand` | Tests delete data, so they must never touch the real database. No new dependency |
+| 2026-10-22 | Admin is created with `node scripts/seed-admin.js` from ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD and optional ADMIN_PHONE. Safe to run twice, never changes an existing account | TEAM_GUIDE section 1 says admin is created by a seed script |
 | | Refresh tokens: undecided | |
 | | TURN server: undecided | |
 | | Deployment target: undecided | |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
-List anything built differently from the plan (changed endpoint, renamed field), so the docs can be corrected.
+- Added the optional env variable `ADMIN_PHONE` (default placeholder +910000000000), because the User model requires a phone for every user, including the admin.
+- Added the env variable `MONGODB_URI_TEST` for the separate test database.
 
 -
 
 ## Known issues
 
 - A logged-in user can still open `/login` and `/register` by typing the address. They are not redirected to their dashboard yet.
+- Backend tests pass `runtimeAdapters: { os: require('os') }` in tests/helpers/db.js because of the MongoDB driver bug NODE-7832 (driver 7.6 and later, under Jest). Remove it once a fixed driver is released.
 
 ## How to hand over to another AI
 
