@@ -1,9 +1,10 @@
 import json
 
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
+from .pdf import generate_prescription_pdf
 from .serializers import PrescriptionPdfSerializer
 
 
@@ -13,11 +14,9 @@ def generate_pdf(request):
     """
     POST /prescriptions/pdf
 
-    Accepts JSON with prescriptionId, patientName, doctorName, issuedDate,
-    and items[]. Validates all fields and returns 400 on bad input. PDF
-    generation will be added in step 3.
+    Validates prescription input JSON and returns a generated PDF as application/pdf.
+    Errors are returned as JSON with appropriate HTTP status codes.
     """
-    # Parse the request body as JSON
     try:
         data = json.loads(request.body)
     except (json.JSONDecodeError, UnicodeDecodeError):
@@ -32,16 +31,13 @@ def generate_pdf(request):
             status=400,
         )
 
-    # Validate input with the serializer
     serializer = PrescriptionPdfSerializer(data=data)
     if not serializer.is_valid():
-        # Return the first validation error in a clean, human-readable format
         errors = serializer.errors
         first_field = next(iter(errors))
         first_message = errors[first_field]
         if isinstance(first_message, list):
             first_message = first_message[0]
-        # DRF may return nested error dicts for ListField items; flatten simply
         if isinstance(first_message, dict):
             first_message = str(first_message)
 
@@ -54,6 +50,11 @@ def generate_pdf(request):
             status=400,
         )
 
-    # Validated data — PDF generation will be wired in step 3
+    # Generate raw PDF bytes with ReportLab
     validated = serializer.validated_data
-    return JsonResponse({'message': 'Validation passed', 'data': str(validated)}, status=200)
+    pdf_bytes = generate_prescription_pdf(validated)
+
+    prescription_id = validated.get('prescriptionId', 'prescription')
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="prescription_{prescription_id}.pdf"'
+    return response
