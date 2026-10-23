@@ -1,4 +1,5 @@
 const { Doctor } = require('../models/User');
+const Slot = require('../models/Slot');
 const AppError = require('../utils/AppError');
 
 const MAX_SEARCH_LENGTH = 100;
@@ -145,7 +146,29 @@ async function listDoctors(queryParams) {
   };
 }
 
+// GET /api/v1/doctors/me/availability
+// The logged-in doctor lists their own future slots, booked and open, sorted by startTime ascending.
+async function getMyAvailability(doctorId) {
+  const now = new Date();
+  const slots = await Slot.find({
+    doctor: doctorId,
+    startTime: { $gte: now },
+  })
+    .sort({ startTime: 1 })
+    .lean();
+
+  return {
+    slots: slots.map((s) => ({
+      id: s._id.toString(),
+      startTime: s.startTime.toISOString(),
+      endTime: s.endTime.toISOString(),
+      isBooked: s.isBooked,
+    })),
+  };
+}
+
 module.exports = {
+  getMyAvailability,
   listDoctors,
   escapeRegex,
   validateDoctorsQuery,
