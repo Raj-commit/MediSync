@@ -33,8 +33,16 @@ async function updateMyAvailability(req, res) {
   res.json(result);
 }
 
+// GET /api/v1/doctors/:id/availability
+// A logged-in patient views one doctor's open availability slots.
+async function getDoctorAvailability(req, res) {
+  const result = await doctorService.getDoctorAvailability(req.params.id);
+  res.json(result);
+}
+
 module.exports = {
   listDoctors,
   getMyAvailability,
   updateMyAvailability,
+  getDoctorAvailability,
 };

@@ -30,4 +30,17 @@ router.put(
   doctorController.updateMyAvailability
 );
 
+// GET /api/v1/doctors/:id/availability
+// A logged-in patient views one doctor's open future slots (not booked).
+// Order of checks (AGENTS.md section 3 rule 4):
+// 1. authenticate: checks valid JWT and loads req.user from DB
+// 2. requireRole: patients only (doctors and admins receive 403 FORBIDDEN)
+// 3. doctorController.getDoctorAvailability: validates doctor and returns open future slots
+router.get(
+  '/:id/availability',
+  authenticate,
+  requireRole('patient'),
+  doctorController.getDoctorAvailability
+);
+
 module.exports = router;
