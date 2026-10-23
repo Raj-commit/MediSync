@@ -6,16 +6,25 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
 
+const ALLOWED_QUERY_KEYS = ['name', 'specialisation', 'page', 'limit'];
+
 // Escapes special regex characters so user input is treated as literal search text.
 function escapeRegex(text) {
   return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 }
 
-// Validates query parameters: prevents NoSQL injection (objects/arrays), limits lengths,
-// and ensures page/limit are valid positive integers.
+// Validates query parameters: prevents NoSQL injection (objects/arrays/unknown keys),
+// limits lengths, and ensures page/limit are valid positive integers.
 function validateDoctorsQuery(query) {
   const q =
     query !== null && typeof query === 'object' && !Array.isArray(query) ? query : {};
+
+  // Reject unexpected or bracketed parameters (e.g. name[$gt])
+  for (const key of Object.keys(q)) {
+    if (!ALLOWED_QUERY_KEYS.includes(key)) {
+      throw new AppError(400, 'VALIDATION_ERROR', `Unknown query parameter: ${key}`);
+    }
+  }
 
   let name;
   if (q.name !== undefined) {
