@@ -2,15 +2,15 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-21  by: Uday Raj
+Last updated: 2026-10-22  by: Uday Raj
 
 ## Current work
 
-- Branch: `feature/auth-api` (pushed, PR open, not merged yet)
-- Feature: auth
-- Last thing finished: auth API (register, login, me, auth and requireRole middleware, seed-admin script, tests)
-- Next step: review and merge the `feature/auth-api` PR, then start the next feature (profiles)
-- Blockers or open questions: after merge, each teammate must add ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_PHONE and MONGODB_URI_TEST to their own backend/.env and run `node scripts/seed-admin.js` once
+- Branch: none open. `feature/auth-api` was merged in PR #14 and `feature/auth-ui` in PR #12
+- Feature: auth (done, API and UI)
+- Last thing finished: auth API (register, login, me, auth and requireRole middleware, seed-admin script), checked against the UI
+- Next step: `feature/prescription-pdf` (Alis), symptom-checker stub (Riyank), profiles (Hitanshu), doctor-availability (Uday Raj)
+- Blockers or open questions: each teammate must add ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_PHONE and MONGODB_URI_TEST to their own backend/.env and run `node scripts/seed-admin.js` once
 
 ## Feature status
 
@@ -19,7 +19,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | # | Feature | API | UI | Owner | Notes |
 |---|---|---|---|---|---|
 | 1 | project-setup | done | n/a | Team | Backend skeleton, Django wiring and frontend shell are on main |
-| 2 | auth | in review | done | Alis (API), Uday Raj (UI) | API on feature/auth-api (PR open). UI merged in PR #12. Seed the admin with node scripts/seed-admin.js |
+| 2 | auth | done | done | Alis (API), Uday Raj (UI) | API merged in PR #14, UI in PR #12. Seed the admin with node scripts/seed-admin.js |
 | 3 | profiles | not started | not started | | |
 | 4 | doctor-availability | not started | not started | | |
 | 5 | appointment-booking | not started | not started | | |
@@ -46,7 +46,7 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-15 | Password minimum is 8 characters | TEAM_GUIDE section 1 |
 | 2026-10-15 | Appointment slot is 30 minutes, future dates only | TEAM_GUIDE section 1 |
 | 2026-10-15 | Cancel or reschedule allowed until 1 hour before the start | TEAM_GUIDE section 1 |
-| 2026-10-15 | PDF library is ReportLab (storage still undecided) | TEAM_GUIDE section 1 |
+| 2026-10-15 | PDF library is ReportLab | TEAM_GUIDE section 1 |
 | 2026-10-15 | Symptom checker: rule-based stub first, real LLM call later, in its own module (`symptom_checker/engine.py`) | TEAM_GUIDE section 1 |
 | 2026-10-15 | MongoDB: each person uses their own local database while developing | TEAM_GUIDE section 1 |
 | 2026-10-21 | Register request body: `role` (patient or doctor), `name`, `email`, `phone`, `password`; patient adds `dateOfBirth` (YYYY-MM-DD) and `address`; doctor adds `specialisations` (array of strings) and `qualification` | The UI sends exactly this, field names follow the data model in AGENTS.md section 5 |
@@ -57,9 +57,11 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-22 | Error codes: `INVALID_CREDENTIALS` 401, `UNAUTHORIZED` 401 (no token), `INVALID_TOKEN` 401 (bad or expired token), `FORBIDDEN` 403, `ACCOUNT_DISABLED` 403, `EMAIL_TAKEN` 409, `VALIDATION_ERROR` 400, `INVALID_JSON` 400, `TOO_MANY_ATTEMPTS` 429. Register answers 201 with `{ user }`. Login allows 10 failed attempts per 15 minutes | Shared codes for the UI and later features |
 | 2026-10-22 | Backend tests use a separate database from `MONGODB_URI_TEST`. Its name must end with `_test`. Jest runs with `--runInBand` | Tests delete data, so they must never touch the real database. No new dependency |
 | 2026-10-22 | Admin is created with `node scripts/seed-admin.js` from ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD and optional ADMIN_PHONE. Safe to run twice, never changes an existing account | TEAM_GUIDE section 1 says admin is created by a seed script |
-| | Refresh tokens: undecided | |
-| | TURN server: undecided | |
-| | Deployment target: undecided | |
+| 2026-10-22 | Refresh tokens: none. Access token only, a 1-day JWT. When it expires the UI logs the user out and they log in again | Fewer moving parts. The UI already ends the session on a 401. Revisit only if time is left in week 4 |
+| 2026-10-22 | Video (WebRTC): public STUN (`stun:stun.l.google.com:19302`) while developing. For the deployed demo, add a free hosted TURN service as a fallback. ICE server details come from backend env variables and reach the UI through the API, never hardcoded in the frontend | STUN works on most home and college networks, TURN covers strict ones, and there is no server to run |
+| 2026-10-22 | Deployment: frontend as a Render Static Site, Express and Django as Render free Web Services (Django is public but only answers requests with the right `X-Service-Key`), database on MongoDB Atlas M0. Everything over HTTPS. Free services sleep when idle, so open both /api health URLs a few minutes before a demo. Running locally is the fallback. Deploy a skeleton in week 2 | One platform, free, WebSockets work, and browsers only allow camera and microphone on HTTPS or localhost |
+| 2026-10-22 | Prescription PDFs are stored in MongoDB, not on disk. `pdfUrl` holds the API path `/api/v1/prescriptions/:id/pdf`, and the file is sent only through that endpoint after the access checks | A free host wipes its disk on restart. MongoDB already holds the records, and access control stays in Express |
+| 2026-10-22 | Symptom checker: the rule-based engine is the deliverable. A real LLM call is a stretch goal after the core features, with its key in env and a "not medical advice" notice | Keeps the demo reliable |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
