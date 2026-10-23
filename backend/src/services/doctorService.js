@@ -233,7 +233,50 @@ async function updateMyAvailability(doctorId, rawSlots) {
   };
 }
 
+// GET /api/v1/doctors/:id/availability
+// A logged-in patient views one doctor's open future slots (not booked, sorted by startTime).
+// Returns doctor's id, name, and open slots. Never exposes email, phone, or passwordHash.
+async function getDoctorAvailability(doctorId) {
+  if (!doctorId || typeof doctorId !== 'string' || !/^[0-9a-fA-F]{24}$/.test(doctorId)) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Invalid doctor ID');
+  }
+
+  // Doctor must exist, have role 'doctor', and be active
+  const doctor = await Doctor.findOne({
+    _id: doctorId,
+    role: 'doctor',
+    isActive: true,
+  }).select('_id name');
+
+  if (!doctor) {
+    throw new AppError(404, 'NOT_FOUND', 'Doctor not found');
+  }
+
+  const now = new Date();
+  const openSlots = await Slot.find({
+    doctor: doctorId,
+    isBooked: false,
+    startTime: { $gte: now },
+  })
+    .sort({ startTime: 1 })
+    .lean();
+
+  return {
+    doctor: {
+      id: doctor._id.toString(),
+      name: doctor.name,
+    },
+    slots: openSlots.map((s) => ({
+      id: s._id.toString(),
+      startTime: s.startTime.toISOString(),
+      endTime: s.endTime.toISOString(),
+      isBooked: s.isBooked,
+    })),
+  };
+}
+
 module.exports = {
+  getDoctorAvailability,
   updateMyAvailability,
   getMyAvailability,
   listDoctors,
