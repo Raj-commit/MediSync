@@ -7,6 +7,14 @@ function getProfile(req, res) {
   res.json({ user: profile });
 }
 
+// PUT /api/v1/users/me
+// Updates the editable profile fields of the authenticated patient or doctor.
+async function updateProfile(req, res) {
+  const profile = await userService.updateProfile(req.user, req.body);
+  res.json({ user: profile });
+}
+
 module.exports = {
   getProfile,
+  updateProfile,
 };

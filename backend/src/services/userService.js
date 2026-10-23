@@ -1,4 +1,5 @@
 const AppError = require('../utils/AppError');
+const validateProfile = require('../utils/validateProfile');
 
 // Formats a patient or doctor user document into the public profile representation.
 // Admins have no profile and are forbidden. Never includes passwordHash or internal fields.
@@ -41,7 +42,22 @@ function getProfile(user) {
   return serializeProfile(user);
 }
 
+// Partially updates the authenticated user's profile with provided editable fields.
+async function updateProfile(user, body) {
+  if (user.role !== 'patient' && user.role !== 'doctor') {
+    throw new AppError(403, 'FORBIDDEN', 'You do not have permission to do this');
+  }
+
+  const updates = validateProfile(body, user.role);
+
+  user.set(updates);
+  await user.save();
+
+  return serializeProfile(user);
+}
+
 module.exports = {
   getProfile,
+  updateProfile,
   serializeProfile,
 };
