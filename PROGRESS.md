@@ -2,15 +2,15 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-22  by: Uday Raj
+Last updated: 2026-10-23  by: Riyank
 
 ## Current work
 
-- Branch: none open. `feature/auth-api` was merged in PR #14 and `feature/auth-ui` in PR #12
-- Feature: auth (done, API and UI)
-- Last thing finished: auth API (register, login, me, auth and requireRole middleware, seed-admin script), checked against the UI
-- Next step: `feature/prescription-pdf` (Alis), symptom-checker stub (Riyank), profiles (Hitanshu), doctor-availability (Uday Raj)
-- Blockers or open questions: each teammate must add ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_PHONE and MONGODB_URI_TEST to their own backend/.env and run `node scripts/seed-admin.js` once
+- Branch: `feature/prescription-pdf`
+- Feature: prescription-pdf (done, Django service)
+- Last thing finished: FR-15 prescription PDF generation endpoint (POST /api/prescriptions/pdf) with ReportLab, HTML/XML escaping, ServiceKeyMiddleware with timing-safe comparison, input validation, and full Django test suite
+- Next step: PR for feature/prescription-pdf; symptom-checker stub (Riyank), profiles (Hitanshu), doctor-availability (Uday Raj)
+- Blockers or open questions: none
 
 ## Feature status
 
@@ -29,7 +29,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 9 | video-consultation | not started | not started | | |
 | 10 | medical-records | not started | not started | | |
 | 11 | prescriptions | not started | not started | | |
-| 12 | prescription-pdf | not started | not started | | |
+| 12 | prescription-pdf | in review | n/a | Alis | Django endpoint POST /api/prescriptions/pdf with ReportLab, timing-safe X-Service-Key check, escaping, and tests |
 | 13 | symptom-checker | not started | not started | | |
 | 14 | admin-user-management | not started | not started | | |
 | 15 | polish-testing | not started | n/a | | |
@@ -62,6 +62,8 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-22 | Deployment: frontend as a Render Static Site, Express and Django as Render free Web Services (Django is public but only answers requests with the right `X-Service-Key`), database on MongoDB Atlas M0. Everything over HTTPS. Free services sleep when idle, so open both /api health URLs a few minutes before a demo. Running locally is the fallback. Deploy a skeleton in week 2 | One platform, free, WebSockets work, and browsers only allow camera and microphone on HTTPS or localhost |
 | 2026-10-22 | Prescription PDFs are stored in MongoDB, not on disk. `pdfUrl` holds the API path `/api/v1/prescriptions/:id/pdf`, and the file is sent only through that endpoint after the access checks | A free host wipes its disk on restart. MongoDB already holds the records, and access control stays in Express |
 | 2026-10-22 | Symptom checker: the rule-based engine is the deliverable. A real LLM call is a stretch goal after the core features, with its key in env and a "not medical advice" notice | Keeps the demo reliable |
+| 2026-10-23 | ServiceKeyMiddleware checks X-Service-Key via secrets.compare_digest, exempts GET /health, refuses all requests if AI_SERVICE_KEY is unset | Prevents timing attacks, prevents accidental open access when key is misconfigured |
+| 2026-10-23 | Prescription PDF endpoint: input fields escaped with html.escape(quote=True) before ReportLab Paragraph rendering; PDF generated in-memory with BytesIO | Prevents XML/markup injection in ReportLab; avoids ephemeral disk writes |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
