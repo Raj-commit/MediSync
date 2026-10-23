@@ -21,4 +21,13 @@ router.get(
   doctorController.getMyAvailability
 );
 
+// PUT /api/v1/doctors/me/availability
+// The logged-in doctor sets or updates their future availability slots.
+router.put(
+  '/me/availability',
+  authenticate,
+  requireRole('doctor'),
+  doctorController.updateMyAvailability
+);
+
 module.exports = router;
