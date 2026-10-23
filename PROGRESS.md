@@ -2,14 +2,14 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-24  by: Hitanshu
+Last updated: 2026-10-24  by: Riyank
 
 ## Current work
 
-- Branch: `feature/profiles-api`
-- Feature: profiles (API done, backend)
-- Last thing finished: FR-05 & FR-06 backend implementation: GET /api/v1/users/me, PUT /api/v1/users/me (partial update), and GET /api/v1/doctors (search and pagination) with complete input validation and full Jest/Supertest test suite (88/88 tests passing)
-- Next step: Open PR for feature/profiles-api; doctor-availability (Uday Raj), profiles UI (feature/profiles-ui)
+- Branch: `feature/doctor-availability-api`
+- Feature: doctor-availability (API done, backend)
+- Last thing finished: FR-07 backend implementation: GET & PUT /api/v1/doctors/me/availability and GET /api/v1/doctors/:id/availability with dedicated Slot model ({ doctor: 1, startTime: 1 } unique compound index), full future replacement, strict ISO UTC 30-min validation, booked slot protection, and comprehensive test suite (all tests passing)
+- Next step: Open PR for feature/doctor-availability-api; appointment-booking API (feature/appointment-booking-api), doctor-availability UI (feature/doctor-availability-ui)
 - Blockers or open questions: none
 
 ## Feature status
@@ -21,7 +21,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 1 | project-setup | done | n/a | Team | Backend skeleton, Django wiring and frontend shell are on main |
 | 2 | auth | done | done | Alis (API), Uday Raj (UI) | API merged in PR #14, UI in PR #12. Seed the admin with node scripts/seed-admin.js |
 | 3 | profiles | done | not started | Hitanshu | GET & PUT /users/me, GET /doctors with search & pagination, 100% test coverage |
-| 4 | doctor-availability | not started | not started | | |
+| 4 | doctor-availability | done | not started | Riyank | GET & PUT /doctors/me/availability, GET /doctors/:id/availability, 30-min slot validation, booked slots protection |
 | 5 | appointment-booking | not started | not started | | |
 | 6 | appointment-management | not started | not started | | |
 | 7 | notifications | not started | not started | | |
@@ -68,6 +68,10 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-24 | Profile update rules: `PUT /api/v1/users/me` performs partial updates on allowed editable fields (`name`, `phone` for both; `dateOfBirth`, `address` for patient; `specialisations`, `qualification` for doctor). Protected fields (`email`, `password`, `role`, `isActive`, `id`) and cross-role fields are rejected with 400 `VALIDATION_ERROR`. At least one field required | Allows seamless single-field edits from UI without requiring full replace, while protecting sensitive account properties |
 | 2026-10-24 | Doctor search response shape & rules: `GET /api/v1/doctors` returns `{ doctors: [{ id, name, specialisations, qualification }], pagination: { page, limit, total, totalPages } }`. Patient role required (403 for doctors/admins). Only active doctors (`isActive: true`) are listed. Contact info (`email`, `phone`) and credentials are hidden. Search parameters `name` and `specialisation` are sanitized against regex injection; `limit` capped at 50 | UC-04 step 1 contract for patient doctor discovery; prevents doctor phone/email harvesting, NoSQL injection, and ReDoS |
 | 2026-10-24 | Profile validation uses dedicated `validateProfile.js` rather than modifying `validateRegister.js` | Follows AGENTS.md rule 10.5 (do not edit merged code outside current feature) |
+| 2026-10-24 | Slot storage: dedicated `Slot` collection (`backend/src/models/Slot.js`) with compound unique index `{ doctor: 1, startTime: 1 }` | Guarantees at database level no doctor has duplicate/overlapping start times; enables atomic double-booking prevention in FR-08 via `findOneAndUpdate({ _id, isBooked: false }, { isBooked: true })` |
+| 2026-10-24 | Slot rules: strictly 30 minutes, ISO 8601 UTC ending in Z, future dates only, max 60 days ahead, max 50 slots per request, no internal overlaps | Enforces appointment slot duration agreement, prevents calendar spam and far-future stale slots |
+| 2026-10-24 | Availability update: `PUT /api/v1/doctors/me/availability` performs full replacement of unbooked future slots; already booked slots can never be deleted or modified | Simple calendar sync for doctor UI while guaranteeing patient appointments are never orphaned or modified |
+| 2026-10-24 | Availability response shapes: `GET /me/availability` and `PUT /me/availability` return `{ slots: [{ id, startTime, endTime, isBooked }] }`. `GET /:id/availability` returns `{ doctor: { id, name }, slots: [{ id, startTime, endTime, isBooked }] }` (only unbooked future slots, doctor contact info strictly hidden) | Minimal, consistent envelope protecting doctor privacy and matching patient discovery flow |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 

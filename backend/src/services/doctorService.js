@@ -1,4 +1,6 @@
 const { Doctor } = require('../models/User');
+const Slot = require('../models/Slot');
+const { validateSlotsList } = require('../utils/validateAvailability');
 const AppError = require('../utils/AppError');
 
 const MAX_SEARCH_LENGTH = 100;
@@ -145,7 +147,138 @@ async function listDoctors(queryParams) {
   };
 }
 
+// GET /api/v1/doctors/me/availability
+// The logged-in doctor lists their own future slots, booked and open, sorted by startTime ascending.
+async function getMyAvailability(doctorId) {
+  const now = new Date();
+  const slots = await Slot.find({
+    doctor: doctorId,
+    startTime: { $gte: now },
+  })
+    .sort({ startTime: 1 })
+    .lean();
+
+  return {
+    slots: slots.map((s) => ({
+      id: s._id.toString(),
+      startTime: s.startTime.toISOString(),
+      endTime: s.endTime.toISOString(),
+      isBooked: s.isBooked,
+    })),
+  };
+}
+
+// PUT /api/v1/doctors/me/availability
+// The logged-in doctor sets or updates their future availability slots.
+// Replaces unbooked future slots with the validated list.
+// Booked slots can never be removed or modified.
+async function updateMyAvailability(doctorId, rawSlots) {
+  const now = new Date();
+  const validatedSlots = validateSlotsList(rawSlots, now);
+
+  // Load existing future slots
+  const existingFutureSlots = await Slot.find({
+    doctor: doctorId,
+    startTime: { $gte: now },
+  });
+
+  const bookedSlots = existingFutureSlots.filter((s) => s.isBooked);
+
+  // Ensure no incoming slot overlaps with an already booked slot
+  for (const slot of validatedSlots) {
+    for (const booked of bookedSlots) {
+      if (slot.startTime < booked.endTime && slot.endTime > booked.startTime) {
+        throw new AppError(
+          400,
+          'VALIDATION_ERROR',
+          `Cannot add or modify a slot that overlaps with an already booked slot (${booked.startTime.toISOString()})`
+        );
+      }
+    }
+  }
+
+  // Remove existing unbooked future slots for this doctor
+  await Slot.deleteMany({
+    doctor: doctorId,
+    isBooked: false,
+    startTime: { $gte: now },
+  });
+
+  // Insert the new validated slots
+  if (validatedSlots.length > 0) {
+    const docsToInsert = validatedSlots.map((s) => ({
+      doctor: doctorId,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      isBooked: false,
+    }));
+    await Slot.insertMany(docsToInsert);
+  }
+
+  // Return all future slots (newly added open slots + preserved booked slots), sorted by startTime
+  const allSlots = await Slot.find({
+    doctor: doctorId,
+    startTime: { $gte: now },
+  })
+    .sort({ startTime: 1 })
+    .lean();
+
+  return {
+    slots: allSlots.map((s) => ({
+      id: s._id.toString(),
+      startTime: s.startTime.toISOString(),
+      endTime: s.endTime.toISOString(),
+      isBooked: s.isBooked,
+    })),
+  };
+}
+
+// GET /api/v1/doctors/:id/availability
+// A logged-in patient views one doctor's open future slots (not booked, sorted by startTime).
+// Returns doctor's id, name, and open slots. Never exposes email, phone, or passwordHash.
+async function getDoctorAvailability(doctorId) {
+  if (!doctorId || typeof doctorId !== 'string' || !/^[0-9a-fA-F]{24}$/.test(doctorId)) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Invalid doctor ID');
+  }
+
+  // Doctor must exist, have role 'doctor', and be active
+  const doctor = await Doctor.findOne({
+    _id: doctorId,
+    role: 'doctor',
+    isActive: true,
+  }).select('_id name');
+
+  if (!doctor) {
+    throw new AppError(404, 'NOT_FOUND', 'Doctor not found');
+  }
+
+  const now = new Date();
+  const openSlots = await Slot.find({
+    doctor: doctorId,
+    isBooked: false,
+    startTime: { $gte: now },
+  })
+    .sort({ startTime: 1 })
+    .lean();
+
+  return {
+    doctor: {
+      id: doctor._id.toString(),
+      name: doctor.name,
+    },
+    slots: openSlots.map((s) => ({
+      id: s._id.toString(),
+      startTime: s.startTime.toISOString(),
+      endTime: s.endTime.toISOString(),
+      isBooked: s.isBooked,
+    })),
+  };
+}
+
 module.exports = {
+  getDoctorAvailability,
+  updateMyAvailability,
+  getMyAvailability,
   listDoctors,
   escapeRegex,
   validateDoctorsQuery,
