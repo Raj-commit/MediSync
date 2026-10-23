@@ -1,5 +1,7 @@
 const express = require('express');
 const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+const doctorRoutes = require('./routes/doctorRoutes');
 const helmet = require('helmet');
 const cors = require('cors');
 const notFound = require('./middleware/notFound');
@@ -20,6 +22,8 @@ app.get('/api/v1/health', (req, res) => {
 });
 
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/doctors', doctorRoutes);
 // Must stay last: anything no route handled ends up here.
 app.use(notFound);
 app.use(errorHandler);

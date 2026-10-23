@@ -2,14 +2,14 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-23  by: Riyank
+Last updated: 2026-10-24  by: Hitanshu
 
 ## Current work
 
-- Branch: `feature/prescription-pdf`
-- Feature: prescription-pdf (done, Django service)
-- Last thing finished: FR-15 prescription PDF generation endpoint (POST /api/prescriptions/pdf) with ReportLab, HTML/XML escaping, ServiceKeyMiddleware with timing-safe comparison, input validation, and full Django test suite
-- Next step: PR for feature/prescription-pdf; symptom-checker stub (Riyank), profiles (Hitanshu), doctor-availability (Uday Raj)
+- Branch: `feature/profiles-api`
+- Feature: profiles (API done, backend)
+- Last thing finished: FR-05 & FR-06 backend implementation: GET /api/v1/users/me, PUT /api/v1/users/me (partial update), and GET /api/v1/doctors (search and pagination) with complete input validation and full Jest/Supertest test suite (88/88 tests passing)
+- Next step: Open PR for feature/profiles-api; doctor-availability (Uday Raj), profiles UI (feature/profiles-ui)
 - Blockers or open questions: none
 
 ## Feature status
@@ -20,7 +20,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 |---|---|---|---|---|---|
 | 1 | project-setup | done | n/a | Team | Backend skeleton, Django wiring and frontend shell are on main |
 | 2 | auth | done | done | Alis (API), Uday Raj (UI) | API merged in PR #14, UI in PR #12. Seed the admin with node scripts/seed-admin.js |
-| 3 | profiles | not started | not started | | |
+| 3 | profiles | done | not started | Hitanshu | GET & PUT /users/me, GET /doctors with search & pagination, 100% test coverage |
 | 4 | doctor-availability | not started | not started | | |
 | 5 | appointment-booking | not started | not started | | |
 | 6 | appointment-management | not started | not started | | |
@@ -29,7 +29,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 9 | video-consultation | not started | not started | | |
 | 10 | medical-records | not started | not started | | |
 | 11 | prescriptions | not started | not started | | |
-| 12 | prescription-pdf | in review | n/a | Alis | Django endpoint POST /api/prescriptions/pdf with ReportLab, timing-safe X-Service-Key check, escaping, and tests |
+| 12 | prescription-pdf | done | n/a | Uday Raj | Merged in PR #17. Django endpoint POST /api/prescriptions/pdf with ReportLab, timing-safe X-Service-Key check, escaping, and tests |
 | 13 | symptom-checker | not started | not started | | |
 | 14 | admin-user-management | not started | not started | | |
 | 15 | polish-testing | not started | n/a | | |
@@ -64,13 +64,15 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-22 | Symptom checker: the rule-based engine is the deliverable. A real LLM call is a stretch goal after the core features, with its key in env and a "not medical advice" notice | Keeps the demo reliable |
 | 2026-10-23 | ServiceKeyMiddleware checks X-Service-Key via secrets.compare_digest, exempts GET /health, refuses all requests if AI_SERVICE_KEY is unset | Prevents timing attacks, prevents accidental open access when key is misconfigured |
 | 2026-10-23 | Prescription PDF endpoint: input fields escaped with html.escape(quote=True) before ReportLab Paragraph rendering; PDF generated in-memory with BytesIO | Prevents XML/markup injection in ReportLab; avoids ephemeral disk writes |
+| 2026-10-24 | Profile response shape: `GET /api/v1/users/me` and `PUT /api/v1/users/me` return `{ user: { id, name, email, phone, role, ...(role-specific fields) } }`. Patient adds `dateOfBirth` (YYYY-MM-DD) and `address`. Doctor adds `specialisations` (array) and `qualification`. Admins have no profile in requirements and receive 403 `FORBIDDEN`. Secrets (`passwordHash`, `__v`) are never returned | Consistent with `GET /auth/me` envelope (`{ user }`) and encapsulates role-specific profile details safely |
+| 2026-10-24 | Profile update rules: `PUT /api/v1/users/me` performs partial updates on allowed editable fields (`name`, `phone` for both; `dateOfBirth`, `address` for patient; `specialisations`, `qualification` for doctor). Protected fields (`email`, `password`, `role`, `isActive`, `id`) and cross-role fields are rejected with 400 `VALIDATION_ERROR`. At least one field required | Allows seamless single-field edits from UI without requiring full replace, while protecting sensitive account properties |
+| 2026-10-24 | Doctor search response shape & rules: `GET /api/v1/doctors` returns `{ doctors: [{ id, name, specialisations, qualification }], pagination: { page, limit, total, totalPages } }`. Patient role required (403 for doctors/admins). Only active doctors (`isActive: true`) are listed. Contact info (`email`, `phone`) and credentials are hidden. Search parameters `name` and `specialisation` are sanitized against regex injection; `limit` capped at 50 | UC-04 step 1 contract for patient doctor discovery; prevents doctor phone/email harvesting, NoSQL injection, and ReDoS |
+| 2026-10-24 | Profile validation uses dedicated `validateProfile.js` rather than modifying `validateRegister.js` | Follows AGENTS.md rule 10.5 (do not edit merged code outside current feature) |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
 - Added the optional env variable `ADMIN_PHONE` (default placeholder +910000000000), because the User model requires a phone for every user, including the admin.
 - Added the env variable `MONGODB_URI_TEST` for the separate test database.
-
--
 
 ## Known issues
 
