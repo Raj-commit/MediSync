@@ -1,0 +1,115 @@
+.availability-header {
+  margin-bottom: 1.5rem;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  text-decoration: none;
+  font-weight: 500;
+  color: var(--color-primary);
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.availability-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  color: var(--color-text);
+}
+
+.subtitle {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.state-box,
+.empty-box,
+.error-box {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+}
+
+.day-card {
+  max-width: 100%;
+  margin-bottom: 1.25rem;
+  padding: 1.25rem;
+}
+
+.day-title {
+  margin: 0 0 1rem;
+  font-size: 1.15rem;
+  color: var(--color-text);
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+.slot-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 0.75rem;
+}
+
+.slot-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+}
+
+.slot-item.is-booked {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+.slot-item.is-open {
+  border-color: #0f766e;
+  background: #f0fdfa;
+}
+
+.slot-time {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.badge-open {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.badge-booked {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.button-secondary {
+  background: #e2e8f0;
+  color: var(--color-text);
+  margin-top: 1rem;
+}
+
+.button-secondary:hover {
+  background: #cbd5e1;
+}

@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { fakeJwt } from '../../../core/auth/testing';
 import { DoctorDashboard } from './doctor-dashboard';
@@ -16,7 +17,7 @@ describe('DoctorDashboard', () => {
     );
     await TestBed.configureTestingModule({
       imports: [DoctorDashboard],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
 
     const fixture = TestBed.createComponent(DoctorDashboard);
@@ -25,5 +26,6 @@ describe('DoctorDashboard', () => {
 
     expect(page.querySelector('h1')?.textContent).toContain('Doctor dashboard');
     expect(page.textContent).toContain('Welcome, Asha Patel.');
+    expect(page.querySelector('a[routerLink="/doctor/availability"]')).not.toBeNull();
   });
 });
