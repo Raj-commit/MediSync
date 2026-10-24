@@ -2,14 +2,14 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-24  by: Alis
+Last updated: 2026-10-24  by: Uday Raj
 
 ## Current work
 
-- Branch: `feature/appointment-booking-api`
-- Feature: appointment-booking (API done, backend)
-- Last thing finished: FR-08 backend implementation: POST /api/v1/appointments allowing patients to book open doctor availability slots. Enforces patient role, strict check ordering, atomic slot claiming, database-level partial unique index protection on active appointments ({ doctor: 1, dateTime: 1 }), automatic slot rollback on creation failure, zero sensitive data leakage, and a comprehensive test suite (all tests passing).
-- Next step: Open PR for feature/appointment-booking-api; appointment-booking UI (feature/appointment-booking-ui), appointment-management API (feature/appointment-management-api).
+- Branch: `feature/doctor-availability-ui`
+- Feature: doctor-availability (UI done, frontend)
+- Last thing finished: FR-07 frontend implementation: /doctor/availability page with Range Generator (Option c), 30-minute interval generation, open slot removal, booked slot immutability & locked display, browser local timezone display, UTC ISO string transmission, doctor route guard, dashboard link, and full Vitest test suite (all tests passing)
+- Next step: Open PR for feature/doctor-availability-ui; appointment-booking UI (feature/appointment-booking-ui), appointment-management API (feature/appointment-management-api)
 - Blockers or open questions: none
 
 ## Feature status
@@ -21,8 +21,8 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 1 | project-setup | done | n/a | Team | Backend skeleton, Django wiring and frontend shell are on main |
 | 2 | auth | done | done | Alis (API), Uday Raj (UI) | API merged in PR #14, UI in PR #12. Seed the admin with node scripts/seed-admin.js |
 | 3 | profiles | done | not started | Hitanshu | GET & PUT /users/me, GET /doctors with search & pagination, 100% test coverage |
-| 4 | doctor-availability | done | not started | Riyank | Merged in PR #19. GET & PUT /doctors/me/availability, GET /doctors/:id/availability, 30-min slot validation, booked slots protection |
-| 5 | appointment-booking | done | not started | Alis | POST /api/v1/appointments, atomic slot claim, partial unique index protection, slot rollback on failure, 100% test coverage |
+| 4 | doctor-availability | done | done | Riyank (API), Uday Raj (UI) | API merged in PR #19. UI at /doctor/availability with range generator, booked slot protection, full Vitest coverage |
+| 5 | appointment-booking | done | not started | Alis | Merged in PR #20. POST /api/v1/appointments, atomic slot claim, partial unique index protection, slot rollback on failure |
 | 6 | appointment-management | not started | not started | | |
 | 7 | notifications | not started | not started | | |
 | 8 | chat | not started | not started | | |
@@ -77,6 +77,10 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-24 | Status on creation: `requested`. Slot is marked `isBooked: true` in the same operation | Slot disappears from availability at once; doctor accepts or rejects later in FR-09 |
 | 2026-10-24 | Error code: `SLOT_TAKEN` 409 | Agreed standard code when a requested slot is already booked or claimed concurrently |
 | 2026-10-24 | Double-booking prevention: atomic claim via `Slot.findOneAndUpdate({ _id, doctor, isBooked: false }, { isBooked: true })` + partial unique indexes on Appointment (`{ doctor: 1, dateTime: 1 }` for `status: 'requested'` and `status: 'confirmed'`) + rollback slot release if appointment creation fails; no MongoDB transactions | Atomic document update prevents race conditions without replica sets/transactions; partial unique index provides database-level defense-in-depth |
+| 2026-10-24 | Doctor availability UI route: `/doctor/availability` guarded by `roleGuard('doctor')`, linked from Doctor Dashboard | Doctor-only screen, consistent title format (`Doctor availability \| MediSync`), redirects unauthorized users |
+| 2026-10-24 | Slot generator (Option c): Range Generator allows selecting date, start time, and end time; automatically segments into 30-min slots; supports single slot via 30-min window | Fastest clinic scheduling workflow for doctors; automatically skips duplicates and existing overlaps |
+| 2026-10-24 | Timezone handling in UI: slots are grouped by day and formatted in browser local time for the doctor; converted to and transmitted as UTC ISO 8601 strings ending in `Z` | Eliminates timezone confusion for doctors while keeping backend canonical time in UTC |
+| 2026-10-24 | Booked slot protection in UI: booked slots display a locked indicator and never render a remove button; `PUT` request payload strictly excludes booked slots | Complies with backend immutability rule, preventing accidental appointment deletion or 400 rejection |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
