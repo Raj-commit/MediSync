@@ -1,0 +1,139 @@
+<main class="container">
+  <div class="search-header">
+    <a routerLink="/patient" class="back-link">&larr; Back to Dashboard</a>
+    <h1>Find a Doctor</h1>
+    <p class="subtitle">Search active doctors and book an appointment slot.</p>
+  </div>
+
+  <section class="card search-card">
+    <form [formGroup]="searchForm" (ngSubmit)="onSearch()" class="search-form" role="search" aria-label="Doctor search">
+      <div class="fields-row">
+        <div class="field">
+          <label for="doctor-name">Doctor name</label>
+          <input
+            id="doctor-name"
+            type="text"
+            formControlName="name"
+            placeholder="e.g. Dr. Sarah"
+            maxlength="100"
+          />
+        </div>
+
+        <div class="field">
+          <label for="doctor-specialisation">Specialisation</label>
+          <input
+            id="doctor-specialisation"
+            type="text"
+            formControlName="specialisation"
+            placeholder="e.g. Cardiology"
+            maxlength="100"
+          />
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="button" [disabled]="loading()">
+          @if (loading()) {
+            Searching...
+          } @else {
+            Search
+          }
+        </button>
+        <button
+          type="button"
+          class="button button-secondary"
+          (click)="onReset()"
+          [disabled]="loading()"
+        >
+          Reset
+        </button>
+      </div>
+    </form>
+  </section>
+
+  @if (loading()) {
+    <div class="card state-box" aria-live="polite">
+      <p>Loading doctors...</p>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="card error-box" role="alert">
+      <p class="error">{{ error() }}</p>
+      <button type="button" class="button button-secondary" (click)="loadDoctors(pagination().page)">
+        Try again
+      </button>
+    </div>
+  }
+
+  @if (!loading() && !error()) {
+    @if (doctors().length === 0) {
+      <div class="card empty-box">
+        <h2>No doctors found</h2>
+        <p>No active doctors match your search criteria. Try a different name or specialisation.</p>
+      </div>
+    } @else {
+      <div class="results-header">
+        <p class="results-count">
+          Showing {{ doctors().length }} of {{ pagination().total }} doctor{{ pagination().total === 1 ? '' : 's' }}
+        </p>
+      </div>
+
+      <ul class="doctor-list" aria-label="Doctor search results">
+        @for (doctor of doctors(); track doctor.id) {
+          <li class="card doctor-card">
+            <div class="doctor-info">
+              <h2 class="doctor-name">{{ doctor.name }}</h2>
+              <p class="doctor-qualification">{{ doctor.qualification }}</p>
+              @if (doctor.specialisations && doctor.specialisations.length > 0) {
+                <div class="specialisation-tags" aria-label="Specialisations">
+                  @for (spec of doctor.specialisations; track spec) {
+                    <span class="badge badge-spec">{{ spec }}</span>
+                  }
+                </div>
+              }
+            </div>
+            <div class="doctor-action">
+              <a
+                [routerLink]="['/patient/doctors', doctor.id]"
+                [state]="{ doctor: doctor }"
+                class="button"
+                [attr.aria-label]="'View availability slots for ' + doctor.name"
+              >
+                View slots
+              </a>
+            </div>
+          </li>
+        }
+      </ul>
+
+      @if (pagination().totalPages > 1) {
+        <nav class="pagination-nav" aria-label="Doctors pagination">
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page <= 1 || loading()"
+            (click)="onPageChange(pagination().page - 1)"
+            aria-label="Previous page"
+          >
+            &larr; Previous
+          </button>
+
+          <span class="page-indicator" aria-current="page">
+            Page {{ pagination().page }} of {{ pagination().totalPages }}
+          </span>
+
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page >= pagination().totalPages || loading()"
+            (click)="onPageChange(pagination().page + 1)"
+            aria-label="Next page"
+          >
+            Next &rarr;
+          </button>
+        </nav>
+      }
+    }
+  }
+</main>
