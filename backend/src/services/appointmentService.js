@@ -13,6 +13,7 @@ const AppError = require('../utils/AppError');
  * 4. Doctor has such a slot (404 NOT_FOUND)
  * 5. Slot is not already booked (409 SLOT_TAKEN)
  * 6. Atomically claim slot and create appointment with status 'requested'
+ * 7. If appointment creation fails after slot claim, release slot rollback
  */
 async function bookAppointment(patientId, input) {
   const { doctorId, slotId } = validateAppointmentInput(input);
@@ -58,15 +59,31 @@ async function bookAppointment(patientId, input) {
     throw new AppError(409, 'SLOT_TAKEN', 'This slot is already booked');
   }
 
-  // Create the appointment document
-  const appointment = await Appointment.create({
-    patient: patientId,
-    doctor: doctor._id,
-    slot: claimedSlot._id,
-    dateTime: claimedSlot.startTime,
-    endTime: claimedSlot.endTime,
-    status: 'requested',
-  });
+  // Create the appointment document with rollback on failure
+  let appointment;
+  try {
+    appointment = await Appointment.create({
+      patient: patientId,
+      doctor: doctor._id,
+      slot: claimedSlot._id,
+      dateTime: claimedSlot.startTime,
+      endTime: claimedSlot.endTime,
+      status: 'requested',
+    });
+  } catch (err) {
+    // Rollback: release the claimed slot so it is not orphaned/lost
+    try {
+      await Slot.findByIdAndUpdate(slotId, { isBooked: false });
+    } catch (releaseErr) {
+      console.error('Failed to release slot after appointment creation failure:', releaseErr);
+    }
+
+    // If duplicate key error from unique partial index on { doctor, dateTime }, report SLOT_TAKEN 409
+    if (err && err.code === 11000) {
+      throw new AppError(409, 'SLOT_TAKEN', 'This slot is already booked');
+    }
+    throw err;
+  }
 
   return {
     appointment: {
