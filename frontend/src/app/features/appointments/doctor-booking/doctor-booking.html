@@ -1,0 +1,144 @@
+<main class="container">
+  @if (bookedAppointment(); as appt) {
+    <!-- Confirmation View (Option 1) -->
+    <section class="card confirmation-card" aria-live="polite">
+      <div class="confirmation-icon" aria-hidden="true">&#10003;</div>
+      <h1>Appointment Requested</h1>
+      <p class="confirmation-subtitle">
+        Your consultation request has been sent to the doctor.
+      </p>
+
+      <div class="confirmation-details">
+        <div class="detail-row">
+          <span class="detail-label">Doctor</span>
+          <span class="detail-value">{{ appt.doctor.name }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Date & Time</span>
+          <span class="detail-value">
+            {{ formatFullDateTime(appt.dateTime) }} – {{ formatTime(appt.endTime) }}
+          </span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Status</span>
+          <span class="badge badge-requested">{{ appt.status }}</span>
+        </div>
+      </div>
+
+      <div class="confirmation-notice">
+        <p>
+          <strong>Please note:</strong> The appointment status is <em>requested</em>. The doctor must review and accept your request before the appointment is confirmed.
+        </p>
+      </div>
+
+      <div class="confirmation-actions">
+        <a routerLink="/patient/doctors" class="button">Book another appointment</a>
+        <a routerLink="/patient" class="button button-secondary">Back to Dashboard</a>
+      </div>
+    </section>
+  } @else {
+    <!-- Slot Selection and Booking View -->
+    <div class="booking-header">
+      <a routerLink="/patient/doctors" class="back-link">&larr; Back to Doctor Search</a>
+
+      <div class="doctor-profile-card card">
+        <h1>{{ doctorName() || 'Doctor Availability' }}</h1>
+
+        @if (doctorDetails(); as details) {
+          @if (details.qualification) {
+            <p class="doctor-qualification">{{ details.qualification }}</p>
+          }
+          @if (details.specialisations && details.specialisations.length > 0) {
+            <div class="specialisation-tags" aria-label="Specialisations">
+              @for (spec of details.specialisations; track spec) {
+                <span class="badge badge-spec">{{ spec }}</span>
+              }
+            </div>
+          }
+        }
+      </div>
+    </div>
+
+    @if (bookingError()) {
+      <div class="card error-box booking-error" role="alert">
+        <p class="error">{{ bookingError() }}</p>
+      </div>
+    }
+
+    @if (loading()) {
+      <div class="card state-box" aria-live="polite">
+        <p>Loading available slots...</p>
+      </div>
+    }
+
+    @if (error()) {
+      <div class="card error-box" role="alert">
+        <p class="error">{{ error() }}</p>
+        <button type="button" class="button button-secondary" (click)="loadSlots()">Try again</button>
+      </div>
+    }
+
+    @if (!loading() && !error()) {
+      @if (slots().length === 0) {
+        <div class="card empty-box">
+          <h2>No open slots</h2>
+          <p>This doctor currently has no open consultation slots available.</p>
+          <p><a routerLink="/patient/doctors" class="button button-secondary">Choose another doctor</a></p>
+        </div>
+      } @else {
+        <section class="slots-section">
+          <h2>Select an available time slot</h2>
+          <p class="subtitle">All times are displayed in your local timezone.</p>
+
+          <div class="days-container">
+            @for (group of groupedSlots(); track group.dateLabel) {
+              <section class="card day-group-card">
+                <h3 class="day-label">{{ group.dateLabel }}</h3>
+                <div class="slot-grid" role="group" [attr.aria-label]="'Time slots for ' + group.dateLabel">
+                  @for (slot of group.slots; track slot.id) {
+                    <button
+                      type="button"
+                      class="slot-btn"
+                      [class.is-selected]="selectedSlot()?.id === slot.id"
+                      [attr.aria-pressed]="selectedSlot()?.id === slot.id"
+                      (click)="selectSlot(slot)"
+                    >
+                      <span class="slot-time">{{ formatTime(slot.startTime) }} – {{ formatTime(slot.endTime) }}</span>
+                      @if (selectedSlot()?.id === slot.id) {
+                        <span class="slot-check" aria-hidden="true">&#10003; Selected</span>
+                      }
+                    </button>
+                  }
+                </div>
+              </section>
+            }
+          </div>
+
+          @if (selectedSlot(); as slot) {
+            <div class="card selection-bar" aria-live="polite">
+              <div class="selection-details">
+                <span class="selection-label">Selected Appointment:</span>
+                <span class="selection-time">
+                  {{ formatFullDateTime(slot.startTime) }} – {{ formatTime(slot.endTime) }}
+                </span>
+              </div>
+              <button
+                type="button"
+                class="button button-book"
+                [disabled]="submitting()"
+                (click)="onConfirmBooking()"
+                [attr.aria-label]="'Confirm and book appointment for ' + formatFullDateTime(slot.startTime)"
+              >
+                @if (submitting()) {
+                  Booking...
+                } @else {
+                  Confirm and Book
+                }
+              </button>
+            </div>
+          }
+        </section>
+      }
+    }
+  }
+</main>

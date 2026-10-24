@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { fakeJwt } from '../../../core/auth/testing';
 import { PatientDashboard } from './patient-dashboard';
@@ -8,7 +9,7 @@ import { PatientDashboard } from './patient-dashboard';
 describe('PatientDashboard', () => {
   afterEach(() => localStorage.clear());
 
-  it('greets the logged-in patient', async () => {
+  it('greets the logged-in patient and displays link to find a doctor', async () => {
     localStorage.setItem('medisync.token', fakeJwt(3600));
     localStorage.setItem(
       'medisync.user',
@@ -16,7 +17,7 @@ describe('PatientDashboard', () => {
     );
     await TestBed.configureTestingModule({
       imports: [PatientDashboard],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
 
     const fixture = TestBed.createComponent(PatientDashboard);
@@ -25,5 +26,6 @@ describe('PatientDashboard', () => {
 
     expect(page.querySelector('h1')?.textContent).toContain('Patient dashboard');
     expect(page.textContent).toContain('Welcome, Asha Patel.');
+    expect(page.querySelector('a[routerLink="/patient/doctors"]')).not.toBeNull();
   });
 });

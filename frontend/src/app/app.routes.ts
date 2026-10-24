@@ -11,6 +11,24 @@ export const routes: Routes = [
   { path: 'login', component: Login, title: 'Login | MediSync' },
   { path: 'register', component: Register, title: 'Register | MediSync' },
   {
+    path: 'patient/doctors',
+    canActivate: [roleGuard('patient')],
+    loadComponent: () =>
+      import('./features/appointments/doctor-search/doctor-search').then(
+        (m) => m.DoctorSearch,
+      ),
+    title: 'Find a doctor | MediSync',
+  },
+  {
+    path: 'patient/doctors/:id',
+    canActivate: [roleGuard('patient')],
+    loadComponent: () =>
+      import('./features/appointments/doctor-booking/doctor-booking').then(
+        (m) => m.DoctorBooking,
+      ),
+    title: 'Book appointment | MediSync',
+  },
+  {
     path: 'patient',
     canActivate: [roleGuard('patient')],
     loadComponent: () =>
