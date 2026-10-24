@@ -20,6 +20,15 @@ export const routes: Routes = [
     title: 'Find a doctor | MediSync',
   },
   {
+    path: 'patient/doctors/:id',
+    canActivate: [roleGuard('patient')],
+    loadComponent: () =>
+      import('./features/appointments/doctor-booking/doctor-booking').then(
+        (m) => m.DoctorBooking,
+      ),
+    title: 'Book appointment | MediSync',
+  },
+  {
     path: 'patient',
     canActivate: [roleGuard('patient')],
     loadComponent: () =>
