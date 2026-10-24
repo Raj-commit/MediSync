@@ -3,6 +3,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import {
+  BookedAppointment,
   DoctorAvailabilitySlot,
   DoctorSummary,
 } from '../../../core/appointments/appointments.models';
@@ -31,6 +32,10 @@ export class DoctorBooking implements OnInit {
 
   protected readonly loading = signal<boolean>(true);
   protected readonly error = signal<string | null>(null);
+
+  protected readonly submitting = signal<boolean>(false);
+  protected readonly bookingError = signal<string | null>(null);
+  protected readonly bookedAppointment = signal<BookedAppointment | null>(null);
 
   // Groups open slots chronologically by local date
   protected readonly groupedSlots = computed<DaySlotGroup[]>(() => {
@@ -113,6 +118,44 @@ export class DoctorBooking implements OnInit {
     } else {
       this.selectedSlot.set(slot);
     }
+  }
+
+  protected onConfirmBooking(): void {
+    const slot = this.selectedSlot();
+    const docId = this.doctorId();
+    if (!slot || !docId || this.submitting()) {
+      return;
+    }
+
+    this.submitting.set(true);
+    this.bookingError.set(null);
+
+    this.appointmentsService
+      .bookAppointment({
+        doctorId: docId,
+        slotId: slot.id,
+      })
+      .subscribe({
+        next: (response) => {
+          this.submitting.set(false);
+          this.bookedAppointment.set(response.appointment);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.submitting.set(false);
+          const message =
+            err.status === 0
+              ? 'Cannot reach the server. Please try again.'
+              : (err.error?.message ?? 'Booking failed. Please try again.');
+
+          this.bookingError.set(message);
+
+          // On 409 SLOT_TAKEN (UC-04 alternate flow), clear selection and reload slots
+          if (err.status === 409 || err.error?.code === 'SLOT_TAKEN') {
+            this.selectedSlot.set(null);
+            this.loadSlots();
+          }
+        },
+      });
   }
 
   protected formatTime(isoString: string): string {
