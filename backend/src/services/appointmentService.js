@@ -191,7 +191,7 @@ async function getAppointments(user, queryParams) {
 async function manageAppointment(user, appointmentId, body) {
   validateAppointmentId(appointmentId);
   const validated = validateAppointmentAction(body);
-  const { action } = validated;
+  const { action, slotId } = validated;
 
   if (action === 'cancel') {
     if (user.role !== 'patient') {
@@ -244,6 +244,129 @@ async function manageAppointment(user, appointmentId, body) {
     // Release the booked slot so it becomes open again
     if (appointment.slot) {
       await Slot.findByIdAndUpdate(appointment.slot, { isBooked: false });
+    }
+
+    return {
+      appointment: {
+        id: updated._id.toString(),
+        doctor: updated.doctor
+          ? {
+              id: (updated.doctor._id || updated.doctor).toString(),
+              name: updated.doctor.name || '',
+            }
+          : null,
+        dateTime: updated.dateTime.toISOString(),
+        endTime: updated.endTime.toISOString(),
+        status: updated.status,
+      },
+    };
+  }
+
+  if (action === 'reschedule') {
+    if (user.role !== 'patient') {
+      throw new AppError(403, 'FORBIDDEN', 'Only patients can reschedule appointments');
+    }
+
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      patient: user._id || user.id,
+    });
+
+    if (!appointment) {
+      throw new AppError(404, 'NOT_FOUND', 'Appointment not found');
+    }
+
+    // Status checks
+    if (appointment.status === 'cancelled') {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Cannot reschedule a cancelled appointment');
+    }
+    if (appointment.status === 'completed') {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Cannot reschedule a completed appointment');
+    }
+    if (appointment.status !== 'requested' && appointment.status !== 'confirmed') {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        `Cannot reschedule an appointment with status "${appointment.status}"`
+      );
+    }
+
+    // Time check: cannot reschedule past or ongoing appointment
+    const now = new Date();
+    if (appointment.dateTime.getTime() <= now.getTime()) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Cannot reschedule a past or ongoing appointment');
+    }
+
+    // Cannot reschedule to the same slot
+    if (appointment.slot && appointment.slot.toString() === slotId) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Cannot reschedule to the same slot');
+    }
+
+    // Verify target slot
+    const targetSlot = await Slot.findById(slotId);
+    if (!targetSlot) {
+      throw new AppError(404, 'NOT_FOUND', 'Slot not found');
+    }
+
+    // Target slot must belong to the same doctor
+    if (targetSlot.doctor.toString() !== appointment.doctor.toString()) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Can only reschedule with the same doctor');
+    }
+
+    // Target slot must be in the future
+    if (targetSlot.startTime.getTime() <= now.getTime()) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Cannot book a slot in the past');
+    }
+
+    // Target slot must not already be booked
+    if (targetSlot.isBooked) {
+      throw new AppError(409, 'SLOT_TAKEN', 'This slot is already booked');
+    }
+
+    // Atomically claim the new slot
+    const claimedSlot = await Slot.findOneAndUpdate(
+      { _id: targetSlot._id, doctor: appointment.doctor, isBooked: false },
+      { isBooked: true },
+      { new: true }
+    );
+
+    if (!claimedSlot) {
+      throw new AppError(409, 'SLOT_TAKEN', 'This slot is already booked');
+    }
+
+    const oldSlotId = appointment.slot;
+    let updated;
+    try {
+      updated = await Appointment.findOneAndUpdate(
+        { _id: appointment._id, status: { $in: ['requested', 'confirmed'] } },
+        {
+          slot: claimedSlot._id,
+          dateTime: claimedSlot.startTime,
+          endTime: claimedSlot.endTime,
+          status: 'requested',
+        },
+        { new: true }
+      ).populate('doctor', '_id name');
+
+      if (!updated) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'Appointment could not be rescheduled');
+      }
+    } catch (err) {
+      // Rollback: release newly claimed slot
+      try {
+        await Slot.findByIdAndUpdate(claimedSlot._id, { isBooked: false });
+      } catch (rollbackErr) {
+        console.error('Failed to rollback claimed slot during reschedule:', rollbackErr);
+      }
+      if (err && err.code === 11000) {
+        throw new AppError(409, 'SLOT_TAKEN', 'This slot is already booked');
+      }
+      throw err;
+    }
+
+    // Successfully updated appointment; release the old slot
+    if (oldSlotId) {
+      await Slot.findByIdAndUpdate(oldSlotId, { isBooked: false });
     }
 
     return {
@@ -387,7 +510,7 @@ async function manageAppointment(user, appointmentId, body) {
     };
   }
 
-  // Future steps will handle reschedule, complete
+  // Step 5 will handle complete
   throw new AppError(400, 'VALIDATION_ERROR', `Action "${action}" is not yet implemented`);
 }
 
