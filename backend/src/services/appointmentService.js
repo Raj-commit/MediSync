@@ -262,7 +262,132 @@ async function manageAppointment(user, appointmentId, body) {
     };
   }
 
-  // Future steps will handle accept, reject, reschedule, complete
+  if (action === 'accept' || action === 'reject') {
+    if (user.role !== 'doctor') {
+      throw new AppError(403, 'FORBIDDEN', `Only doctors can ${action} appointments`);
+    }
+
+    // Doctor can only accept/reject appointments that belong to them
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      doctor: user._id || user.id,
+    });
+
+    if (!appointment) {
+      throw new AppError(404, 'NOT_FOUND', 'Appointment not found');
+    }
+
+    if (action === 'accept') {
+      if (appointment.status === 'confirmed') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'Appointment is already confirmed');
+      }
+      if (appointment.status === 'cancelled') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'Cannot accept a cancelled appointment');
+      }
+      if (appointment.status === 'completed') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'Cannot accept a completed appointment');
+      }
+      if (appointment.status !== 'requested') {
+        throw new AppError(
+          400,
+          'VALIDATION_ERROR',
+          `Cannot accept an appointment with status "${appointment.status}"`
+        );
+      }
+
+      const now = new Date();
+      if (appointment.dateTime.getTime() <= now.getTime()) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'Cannot accept a past or ongoing appointment');
+      }
+
+      let updated;
+      try {
+        updated = await Appointment.findOneAndUpdate(
+          { _id: appointment._id, status: 'requested' },
+          { status: 'confirmed' },
+          { new: true }
+        ).populate('patient', '_id name');
+      } catch (err) {
+        if (err && err.code === 11000) {
+          throw new AppError(
+            409,
+            'SLOT_TAKEN',
+            'Another appointment is already confirmed for this time slot'
+          );
+        }
+        throw err;
+      }
+
+      if (!updated) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'Appointment could not be accepted');
+      }
+
+      return {
+        appointment: {
+          id: updated._id.toString(),
+          patient: updated.patient
+            ? {
+                id: (updated.patient._id || updated.patient).toString(),
+                name: updated.patient.name || '',
+              }
+            : null,
+          dateTime: updated.dateTime.toISOString(),
+          endTime: updated.endTime.toISOString(),
+          status: updated.status,
+        },
+      };
+    }
+
+    // action === 'reject'
+    if (appointment.status === 'cancelled') {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Appointment is already cancelled');
+    }
+    if (appointment.status === 'confirmed') {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Cannot reject an already confirmed appointment');
+    }
+    if (appointment.status === 'completed') {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Cannot reject a completed appointment');
+    }
+    if (appointment.status !== 'requested') {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        `Cannot reject an appointment with status "${appointment.status}"`
+      );
+    }
+
+    const updated = await Appointment.findOneAndUpdate(
+      { _id: appointment._id, status: 'requested' },
+      { status: 'cancelled' },
+      { new: true }
+    ).populate('patient', '_id name');
+
+    if (!updated) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Appointment could not be rejected');
+    }
+
+    // Free the slot so it becomes open again
+    if (appointment.slot) {
+      await Slot.findByIdAndUpdate(appointment.slot, { isBooked: false });
+    }
+
+    return {
+      appointment: {
+        id: updated._id.toString(),
+        patient: updated.patient
+          ? {
+              id: (updated.patient._id || updated.patient).toString(),
+              name: updated.patient.name || '',
+            }
+          : null,
+        dateTime: updated.dateTime.toISOString(),
+        endTime: updated.endTime.toISOString(),
+        status: updated.status,
+      },
+    };
+  }
+
+  // Future steps will handle reschedule, complete
   throw new AppError(400, 'VALIDATION_ERROR', `Action "${action}" is not yet implemented`);
 }
 
