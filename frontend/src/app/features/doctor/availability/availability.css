@@ -27,13 +27,147 @@
   font-size: 0.95rem;
 }
 
-.state-box,
-.empty-box,
-.error-box {
-  text-align: center;
-  padding: 2.5rem 1.5rem;
+/* Alert banners */
+.alert {
+  padding: 0.85rem 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
+.alert-success {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.alert-info {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.alert-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Generator Card */
+.generator-card {
+  max-width: 100%;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+}
+
+.generator-card h2 {
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+  font-size: 1.25rem;
+  color: var(--color-text);
+}
+
+.generator-card .hint {
+  margin-bottom: 1.25rem;
+}
+
+.generator-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.generator-action {
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* Schedule Control Bar */
+.schedule-control-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+}
+
+.schedule-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stat-badge {
+  font-size: 0.85rem;
+  color: #475569;
+  padding: 0.3rem 0.6rem;
+  background: #f1f5f9;
+  border-radius: 0.4rem;
+}
+
+.stat-booked {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.unsaved-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.schedule-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.button-save {
+  min-width: 9rem;
+}
+
+.button-secondary {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.button-secondary:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+/* Empty & Loading States */
+.state-box,
+.empty-box {
+  text-align: center;
+  padding: 3rem 1.5rem;
+}
+
+.empty-box h2 {
+  margin-top: 0;
+  font-size: 1.25rem;
+}
+
+.empty-box p {
+  color: #64748b;
+  margin: 0;
+}
+
+/* Day Cards & Slot Grid */
 .day-card {
   max-width: 100%;
   margin-bottom: 1.25rem;
@@ -53,7 +187,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr));
   gap: 0.75rem;
 }
 
@@ -65,17 +199,24 @@
   border-radius: 0.5rem;
   border: 1px solid #cbd5e1;
   background: #ffffff;
+  transition: border-color 0.15s ease;
 }
 
 .slot-item.is-booked {
   background: #f8fafc;
-  border-color: #cbd5e1;
+  border-color: #e2e8f0;
   color: #64748b;
 }
 
 .slot-item.is-open {
   border-color: #0f766e;
   background: #f0fdfa;
+}
+
+.slot-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .slot-time {
@@ -86,12 +227,13 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.2rem 0.5rem;
+  width: fit-content;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
   border-radius: 9999px;
   text-transform: uppercase;
-  letter-spacing: 0.025em;
+  letter-spacing: 0.04em;
 }
 
 .badge-open {
@@ -104,12 +246,31 @@
   color: #475569;
 }
 
-.button-secondary {
-  background: #e2e8f0;
-  color: var(--color-text);
-  margin-top: 1rem;
+.button-remove {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #b91c1c;
+  background: transparent;
+  border: 1px solid #fca5a5;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.button-secondary:hover {
-  background: #cbd5e1;
+.button-remove:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+.button-remove:focus-visible {
+  outline: 2px solid #b91c1c;
+  outline-offset: 1px;
+}
+
+.locked-note {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  padding: 0.25rem 0.5rem;
 }
