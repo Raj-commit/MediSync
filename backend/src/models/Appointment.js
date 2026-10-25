@@ -65,6 +65,7 @@ appointmentSchema.index(
 
 // Also index patient for quick lookup in future appointment history / management features
 appointmentSchema.index({ patient: 1, dateTime: -1 });
+appointmentSchema.index({ doctor: 1, dateTime: -1 });
 
 const Appointment = mongoose.model('Appointment', appointmentSchema);
 

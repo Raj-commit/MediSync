@@ -2,14 +2,14 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-25  by: Alis
+Last updated: 2026-10-26  by: Uday Raj
 
 ## Current work
 
-- Branch: `feature/profiles-ui`
-- Feature: profiles (UI done, frontend)
-- Last thing finished: FR-05 & FR-06 frontend implementation: /patient/profile and /doctor/profile pages with read-only email, role-specific validations matching validateProfile.js, dirty-fields-only partial updates via PUT /users/me, welcome name sync in AuthService session & localStorage, error alerts, success banners, dashboard links, and full Vitest unit test coverage (19 component tests, 4 profile service tests, 10 auth service tests passing)
-- Next step: Open PR for feature/profiles-ui; appointment-management API (feature/appointment-management-api, FR-09 & FR-10)
+- Branch: `feature/appointment-management-api`
+- Feature: appointment-management (API done, backend)
+- Last thing finished: FR-09 & FR-10 backend API implementation: GET /api/v1/appointments with query filters (when=upcoming|past, status, pagination), PATCH /api/v1/appointments/:id with action-based lifecycle management (cancel, reschedule, accept, reject, complete), role checks, atomic slot claim/release and rollback, index on { doctor: 1, dateTime: -1 }, and comprehensive test suite (backend/tests/appointmentManagement.test.js)
+- Next step: Open PR for feature/appointment-management-api; build appointment-management UI (feature/appointment-management-ui, FR-09 & FR-10)
 - Blockers or open questions: none
 
 ## Feature status
@@ -23,7 +23,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 3 | profiles | done | done | Hitanshu (API), Alis (UI) | GET & PUT /users/me, GET /doctors with search & pagination. UI at /patient/profile and /doctor/profile with dirty-field updates, full Vitest coverage |
 | 4 | doctor-availability | done | done | Riyank (API), Uday Raj (UI) | API merged in PR #19. UI at /doctor/availability with range generator, booked slot protection, full Vitest coverage |
 | 5 | appointment-booking | done | done | Alis | Merged in PR #20 (API) and PR #22 (UI). UI at /patient/doctors and /patient/doctors/:id with slot selection, conflict reload, in-page confirmation, full Vitest coverage |
-| 6 | appointment-management | not started | not started | | |
+| 6 | appointment-management | done | not started | Uday Raj(API) | FR-09 & FR-10 backend API complete: GET /appointments history & PATCH /appointments/:id lifecycle actions (cancel, reschedule, accept, reject, complete) |
 | 7 | notifications | not started | not started | | |
 | 8 | chat | not started | not started | | |
 | 9 | video-consultation | not started | not started | | |
@@ -88,6 +88,11 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-25 | Separate profile routes & components (Option 1): `/patient/profile` (`roleGuard('patient')`) and `/doctor/profile` (`roleGuard('doctor')`), linked from dashboards | Separates patient and doctor forms and validations cleanly without dynamic control toggling, matches existing feature layout |
 | 2026-10-25 | Welcome name sync (Option 1): `AuthService.updateUser({ name })` updates the stored user signal and `localStorage` on successful profile save | Dashboards immediately reflect the updated name without requiring re-login |
 | 2026-10-25 | Profile update payload: UI sends strictly modified (dirty) fields in `PUT /users/me`, email is rendered read-only and never transmitted | Complies with backend validation rejecting email, role, id, and cross-role fields |
+| 2026-10-26 | Appointment lifecycle PATCH body: explicit action-based requests `{ action: "cancel" }`, `{ action: "reschedule", slotId }`, `{ action: "accept" }`, `{ action: "reject" }`, and `{ action: "complete" }`. Unknown fields and unauthorized actions strictly rejected with 400 `VALIDATION_ERROR` or 403 `FORBIDDEN` | Explicit intention per request, eliminates ambiguous partial updates and ensures strict role-based state transitions |
+| 2026-10-26 | Rescheduling resets status to `requested` (even if previously confirmed); claims target slot atomically, updates appointment, releases old slot, and rolls back target slot if appointment update fails; target slot must belong to the same doctor and be in the future | Guarantees doctor re-acceptance for changed timing, prevents slot double-booking or orphaning |
+| 2026-10-26 | Doctor completion: doctor-only action `{ action: "complete" }` allowed only when appointment status is `confirmed` and `dateTime <= now`. Premature completion rejected with 400 `VALIDATION_ERROR`. Completed appointments keep their slot marked as booked | Prevents premature or unauthorized consult completions; preserves slot history for records and prescriptions |
+| 2026-10-26 | Appointment history filters & sorting: `GET /api/v1/appointments` supports `when=upcoming` (`dateTime >= now`, sorted ascending), `when=past` (`dateTime < now`, sorted descending), default (all, sorted descending), `status` filter, and pagination (`page`, `limit` 1..50) | Matches patient and doctor dashboard requirements, chronological order for upcoming appointments, reverse chronological for history |
+| 2026-10-26 | Privacy & ownership on appointments: appointments are accessible only by the owning patient or doctor; responses populate only the other party's `{ id, name }`; accessing unowned or non-existent appointment returns 404 `NOT_FOUND` to prevent ID enumeration; admins receive 403 `FORBIDDEN` | Complies with AGENTS.md section 8 rule 3 and prevents data harvesting |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
