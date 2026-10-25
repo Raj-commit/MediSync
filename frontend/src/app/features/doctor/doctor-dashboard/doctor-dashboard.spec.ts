@@ -9,11 +9,11 @@ import { DoctorDashboard } from './doctor-dashboard';
 describe('DoctorDashboard', () => {
   afterEach(() => localStorage.clear());
 
-  it('greets the logged-in doctor', async () => {
+  it('greets the logged-in doctor and displays links to availability and profile', async () => {
     localStorage.setItem('medisync.token', fakeJwt(3600));
     localStorage.setItem(
       'medisync.user',
-      JSON.stringify({ id: '1', name: 'Asha Patel', email: 'asha@example.com', role: 'doctor' }),
+      JSON.stringify({ id: '1', name: 'Dr. Sarah Smith', email: 'sarah@example.com', role: 'doctor' }),
     );
     await TestBed.configureTestingModule({
       imports: [DoctorDashboard],
@@ -25,7 +25,8 @@ describe('DoctorDashboard', () => {
     const page = fixture.nativeElement as HTMLElement;
 
     expect(page.querySelector('h1')?.textContent).toContain('Doctor dashboard');
-    expect(page.textContent).toContain('Welcome, Asha Patel.');
+    expect(page.textContent).toContain('Welcome, Dr. Sarah Smith.');
     expect(page.querySelector('a[routerLink="/doctor/availability"]')).not.toBeNull();
+    expect(page.querySelector('a[routerLink="/doctor/profile"]')).not.toBeNull();
   });
 });

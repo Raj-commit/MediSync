@@ -54,6 +54,15 @@ export const routes: Routes = [
     title: 'Doctor availability | MediSync',
   },
   {
+    path: 'doctor/profile',
+    canActivate: [roleGuard('doctor')],
+    loadComponent: () =>
+      import('./features/doctor/doctor-profile/doctor-profile').then(
+        (m) => m.DoctorProfile,
+      ),
+    title: 'Doctor profile | MediSync',
+  },
+  {
     path: 'doctor',
     canActivate: [roleGuard('doctor')],
     loadComponent: () =>

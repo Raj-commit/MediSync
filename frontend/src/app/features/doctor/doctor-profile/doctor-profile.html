@@ -1,0 +1,130 @@
+<section class="card profile-card">
+  <h1>Doctor Profile</h1>
+
+  @if (loading()) {
+    <p class="status-message" role="status">Loading profile...</p>
+  } @else if (loadError(); as error) {
+    <div class="error-box" role="alert">
+      <p class="error">{{ error }}</p>
+      <button type="button" class="button button-secondary" (click)="loadProfile()">Try again</button>
+    </div>
+  } @else {
+    @if (successMessage(); as success) {
+      <div class="success-box" role="status" aria-live="polite">
+        <p class="success">{{ success }}</p>
+      </div>
+    }
+
+    @if (serverError(); as error) {
+      <div class="error-box" role="alert">
+        <p class="error">{{ error }}</p>
+      </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <div class="field">
+        <label for="doctor-name">Full name</label>
+        <input
+          id="doctor-name"
+          type="text"
+          formControlName="name"
+          autocomplete="name"
+          maxlength="100"
+        />
+        @if (hasError('name', 'required')) {
+          <p class="error">Name is required.</p>
+        }
+        @if (hasError('name', 'maxlength')) {
+          <p class="error">Name must be at most 100 characters.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="doctor-email">Email</label>
+        <input
+          id="doctor-email"
+          type="email"
+          formControlName="email"
+          readonly
+        />
+        <p class="hint">Email address cannot be changed.</p>
+      </div>
+
+      <div class="field">
+        <label for="doctor-phone">Phone number</label>
+        <input
+          id="doctor-phone"
+          type="tel"
+          formControlName="phone"
+          autocomplete="tel"
+        />
+        @if (hasError('phone', 'required')) {
+          <p class="error">Phone number is required.</p>
+        }
+        @if (hasError('phone', 'pattern')) {
+          <p class="error">Enter a valid phone number.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="doctor-specialisations">Specialisations</label>
+        <input
+          id="doctor-specialisations"
+          type="text"
+          formControlName="specialisations"
+          placeholder="For example: Cardiology, Internal medicine"
+        />
+        <p class="hint">Separate several with commas.</p>
+        @if (hasError('specialisations', 'required')) {
+          <p class="error">Enter at least one specialisation.</p>
+        }
+        @if (hasError('specialisations', 'maxItems')) {
+          <p class="error">Enter between 1 and 10 specialisations.</p>
+        }
+        @if (hasError('specialisations', 'itemLength')) {
+          <p class="error">Each specialisation must be at most 100 characters.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="doctor-qualification">Qualification</label>
+        <input
+          id="doctor-qualification"
+          type="text"
+          formControlName="qualification"
+          placeholder="For example: MBBS, MD"
+          maxlength="200"
+        />
+        @if (hasError('qualification', 'required')) {
+          <p class="error">Qualification is required.</p>
+        }
+        @if (hasError('qualification', 'maxlength')) {
+          <p class="error">Qualification must be at most 200 characters.</p>
+        }
+      </div>
+
+      <div class="actions">
+        <button
+          type="submit"
+          class="button"
+          [disabled]="submitting() || !hasChanges() || form.invalid"
+        >
+          {{ submitting() ? 'Saving changes...' : 'Save changes' }}
+        </button>
+
+        @if (hasChanges()) {
+          <button
+            type="button"
+            class="button button-secondary"
+            (click)="onReset()"
+            [disabled]="submitting()"
+          >
+            Cancel
+          </button>
+        }
+
+        <a routerLink="/doctor" class="button button-secondary">Back to Dashboard</a>
+      </div>
+    </form>
+  }
+</section>
