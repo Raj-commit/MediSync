@@ -44,6 +44,16 @@ export class AuthService {
     this.removeFromStorage(USER_KEY);
   }
 
+  updateUser(updates: Partial<AuthUser>): void {
+    const current = this.session();
+    if (!current) {
+      return;
+    }
+    const updatedUser: AuthUser = { ...current.user, ...updates };
+    this.session.set({ token: current.token, user: updatedUser });
+    this.writeToStorage(USER_KEY, JSON.stringify(updatedUser));
+  }
+
   private startSession({ token, user }: LoginResponse): void {
     this.session.set({ token, user });
     this.writeToStorage(TOKEN_KEY, token);

@@ -137,4 +137,25 @@ describe('AuthService', () => {
     expect(service.isLoggedIn()).toBe(false);
     expect(localStorage.getItem('medisync.user')).toBeNull();
   });
+
+  it('updates the stored user and updates the signal', () => {
+    const token = fakeJwt(3600);
+    localStorage.setItem('medisync.token', token);
+    localStorage.setItem('medisync.user', JSON.stringify(USER));
+
+    const service = createService();
+    service.updateUser({ name: 'Asha Sharma' });
+
+    expect(service.user()?.name).toBe('Asha Sharma');
+    expect(service.user()?.email).toBe('asha@example.com');
+    expect(JSON.parse(localStorage.getItem('medisync.user')!).name).toBe('Asha Sharma');
+  });
+
+  it('safely ignores updateUser when logged out', () => {
+    const service = createService();
+    service.updateUser({ name: 'Someone' });
+
+    expect(service.user()).toBeNull();
+    expect(localStorage.getItem('medisync.user')).toBeNull();
+  });
 });
