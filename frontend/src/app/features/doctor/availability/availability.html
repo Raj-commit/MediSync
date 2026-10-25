@@ -1,43 +1,146 @@
 <main class="container">
-  <div class="availability-header">
-    <div>
-      <a routerLink="/doctor" class="back-link">&larr; Back to Dashboard</a>
-      <h1>Doctor Availability</h1>
-      <p class="subtitle">View and manage your upcoming 30-minute consultation slots.</p>
-    </div>
-  </div>
+  <header class="availability-header">
+    <a routerLink="/doctor" class="back-link">&larr; Back to Doctor Dashboard</a>
+    <h1>Doctor Availability</h1>
+    <p class="subtitle">Configure and manage your 30-minute consultation availability slots.</p>
+  </header>
 
-  @if (loading()) {
-    <div class="card state-box" aria-live="polite">
-      <p>Loading availability slots...</p>
+  <!-- Live Status Banners -->
+  @if (successMessage()) {
+    <div class="alert alert-success" role="status" aria-live="polite">
+      {{ successMessage() }}
+    </div>
+  }
+
+  @if (feedbackMessage()) {
+    <div class="alert alert-info" role="status" aria-live="polite">
+      {{ feedbackMessage() }}
     </div>
   }
 
   @if (error()) {
-    <div class="card error-box" role="alert">
-      <p class="error">{{ error() }}</p>
-      <button type="button" class="button button-secondary" (click)="loadSlots()">Try again</button>
+    <div class="alert alert-error" role="alert">
+      {{ error() }}
     </div>
   }
 
-  @if (!loading() && !error()) {
-    @if (slots().length === 0) {
-      <div class="card empty-box">
-        <h2>No upcoming slots</h2>
-        <p>You have not configured any future availability slots yet.</p>
+  <!-- Slot Generator Section (Option c) -->
+  <section class="card generator-card">
+    <h2>Schedule Availability Slots</h2>
+    <p class="hint">
+      Select a date and a time range. Consecutive 30-minute slots will be generated automatically.
+      Select a 30-minute range (e.g. 09:00 to 09:30) for a single slot.
+    </p>
+
+    <form [formGroup]="generatorForm" (ngSubmit)="onGenerateSlots()" class="generator-form">
+      <div class="generator-fields">
+        <div class="field">
+          <label for="generator-date">Date</label>
+          <input
+            id="generator-date"
+            type="date"
+            formControlName="date"
+            [min]="minDate"
+            [max]="maxDate"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="generator-start-time">Start Time</label>
+          <input
+            id="generator-start-time"
+            type="time"
+            formControlName="startTime"
+            step="1800"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="generator-end-time">End Time</label>
+          <input
+            id="generator-end-time"
+            type="time"
+            formControlName="endTime"
+            step="1800"
+            required
+          />
+        </div>
       </div>
-    } @else {
-      <div class="slots-container">
-        @for (group of groupedSlots(); track group.dateLabel) {
-          <section class="card day-card">
-            <h2 class="day-title">{{ group.dateLabel }}</h2>
-            <ul class="slot-grid" [attr.aria-label]="'Slots for ' + group.dateLabel">
-              @for (slot of group.slots; track slot.id) {
-                <li
-                  class="slot-item"
-                  [class.is-booked]="slot.isBooked"
-                  [class.is-open]="!slot.isBooked"
-                >
+
+      <div class="generator-action">
+        <button type="submit" class="button">Generate Slots</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Schedule Control Bar -->
+  <div class="schedule-control-bar">
+    <div class="schedule-summary">
+      <span class="stat-badge">
+        <strong>{{ openSlotCount() }}</strong> / 50 Open Slots
+      </span>
+      <span class="stat-badge stat-booked">
+        <strong>{{ bookedSlotCount() }}</strong> Booked Appointments
+      </span>
+      @if (hasUnsavedChanges()) {
+        <span class="unsaved-badge" aria-live="polite">Unsaved Changes</span>
+      }
+    </div>
+
+    <div class="schedule-actions">
+      @if (hasUnsavedChanges()) {
+        <button
+          type="button"
+          class="button button-secondary"
+          [disabled]="saving()"
+          (click)="onDiscard()"
+        >
+          Discard Changes
+        </button>
+      }
+
+      <button
+        type="button"
+        class="button button-save"
+        [disabled]="saving() || !hasUnsavedChanges()"
+        (click)="onSave()"
+      >
+        {{ saving() ? 'Saving...' : 'Save Changes' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="card state-box" aria-live="polite">
+      <p>Loading your availability schedule...</p>
+    </div>
+  }
+
+  <!-- Empty State -->
+  @if (!loading() && slots().length === 0) {
+    <div class="card empty-box">
+      <h2>No upcoming availability</h2>
+      <p>You have not configured any future availability slots. Use the scheduler above to add slots for patients.</p>
+    </div>
+  }
+
+  <!-- Grouped Slots List -->
+  @if (!loading() && slots().length > 0) {
+    <div class="slots-container">
+      @for (group of groupedSlots(); track group.dateLabel) {
+        <section class="card day-card">
+          <h2 class="day-title">{{ group.dateLabel }}</h2>
+          <ul class="slot-grid" [attr.aria-label]="'Slots for ' + group.dateLabel">
+            @for (slot of group.slots; track slot.id) {
+              <li
+                class="slot-item"
+                [class.is-booked]="slot.isBooked"
+                [class.is-open]="!slot.isBooked"
+              >
+                <div class="slot-details">
                   <span class="slot-time">{{ formatTime(slot.startTime) }} – {{ formatTime(slot.endTime) }}</span>
                   <span
                     class="badge"
@@ -50,12 +153,25 @@
                       Open
                     }
                   </span>
-                </li>
-              }
-            </ul>
-          </section>
-        }
-      </div>
-    }
+                </div>
+
+                @if (!slot.isBooked) {
+                  <button
+                    type="button"
+                    class="button-remove"
+                    [attr.aria-label]="'Remove slot ' + formatTime(slot.startTime) + ' on ' + group.dateLabel"
+                    (click)="removeSlot(slot.id)"
+                  >
+                    Remove
+                  </button>
+                } @else {
+                  <span class="locked-note" title="Booked slots cannot be removed">Locked</span>
+                }
+              </li>
+            }
+          </ul>
+        </section>
+      }
+    </div>
   }
 </main>
