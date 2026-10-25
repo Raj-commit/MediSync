@@ -167,7 +167,61 @@ function validateAppointmentsQuery(query) {
   return { status, when, page, limit };
 }
 
+const ALLOWED_ACTIONS = ['cancel', 'reschedule', 'accept', 'reject', 'complete'];
+
+/**
+ * Validates a 24-character hexadecimal ObjectId for appointment routing.
+ */
+function validateAppointmentId(id) {
+  if (typeof id !== 'string' || !OBJECT_ID_REGEX.test(id)) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Invalid appointment ID');
+  }
+  return id;
+}
+
+/**
+ * Validates action body for PATCH /api/v1/appointments/:id.
+ * Supported actions: cancel, reschedule, accept, reject, complete.
+ */
+function validateAppointmentAction(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Request body must be an object');
+  }
+
+  const { action, slotId, ...rest } = body;
+  if (!action || typeof action !== 'string' || !ALLOWED_ACTIONS.includes(action)) {
+    throw new AppError(
+      400,
+      'VALIDATION_ERROR',
+      `action must be one of: ${ALLOWED_ACTIONS.join(', ')}`
+    );
+  }
+
+  const extraKeys = Object.keys(rest);
+  if (extraKeys.length > 0) {
+    throw new AppError(400, 'VALIDATION_ERROR', `Unknown field: ${extraKeys[0]}`);
+  }
+
+  if (action === 'reschedule') {
+    if (!slotId) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'slotId is required for reschedule');
+    }
+    if (typeof slotId !== 'string' || !OBJECT_ID_REGEX.test(slotId)) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Invalid slot ID');
+    }
+    return { action, slotId };
+  }
+
+  if (slotId !== undefined) {
+    throw new AppError(400, 'VALIDATION_ERROR', `slotId is not allowed for action "${action}"`);
+  }
+
+  return { action };
+}
+
 module.exports = {
+  validateAppointmentId,
+  validateAppointmentAction,
   validateAppointmentsQuery,
   validateAppointmentInput,
   parseIsoUtcDate,

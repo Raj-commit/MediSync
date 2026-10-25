@@ -15,7 +15,15 @@ async function getAppointments(req, res) {
   res.status(200).json(result);
 }
 
+// PATCH /api/v1/appointments/:id
+// Manage appointment: cancel, reschedule, accept, reject, complete
+async function manageAppointment(req, res) {
+  const result = await appointmentService.manageAppointment(req.user, req.params.id, req.body);
+  res.status(200).json(result);
+}
+
 module.exports = {
+  manageAppointment,
   getAppointments,
   bookAppointment,
 };

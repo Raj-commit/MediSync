@@ -28,4 +28,17 @@ router.post(
   appointmentController.bookAppointment
 );
 
+// PATCH /api/v1/appointments/:id
+// Manage appointment (cancel, reschedule, accept, reject, complete)
+// Order of checks (AGENTS.md section 3 rule 4):
+// 1. authenticate: checks valid JWT and loads req.user from DB
+// 2. requireRole: patients and doctors (admins receive 403 FORBIDDEN)
+// 3. appointmentController.manageAppointment: checks appointmentId, body action, ownership, status transitions
+router.patch(
+  '/:id',
+  authenticate,
+  requireRole('patient', 'doctor'),
+  appointmentController.manageAppointment
+);
+
 module.exports = router;

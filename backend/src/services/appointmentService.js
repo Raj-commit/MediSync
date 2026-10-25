@@ -4,6 +4,8 @@ const Appointment = require('../models/Appointment');
 const {
   validateAppointmentInput,
   validateAppointmentsQuery,
+  validateAppointmentId,
+  validateAppointmentAction,
 } = require('../utils/validateAppointment');
 const AppError = require('../utils/AppError');
 
@@ -182,7 +184,90 @@ async function getAppointments(user, queryParams) {
   };
 }
 
+/**
+ * Manages an appointment based on action (cancel, reschedule, accept, reject, complete).
+ * In Step 2: implements 'cancel' (patient only).
+ */
+async function manageAppointment(user, appointmentId, body) {
+  validateAppointmentId(appointmentId);
+  const validated = validateAppointmentAction(body);
+  const { action } = validated;
+
+  if (action === 'cancel') {
+    if (user.role !== 'patient') {
+      throw new AppError(403, 'FORBIDDEN', 'Only patients can cancel appointments');
+    }
+
+    // Patient can only cancel their own appointment.
+    // If not found or belongs to another patient, return 404 NOT_FOUND.
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      patient: user._id || user.id,
+    });
+
+    if (!appointment) {
+      throw new AppError(404, 'NOT_FOUND', 'Appointment not found');
+    }
+
+    // Status checks
+    if (appointment.status === 'cancelled') {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Appointment is already cancelled');
+    }
+    if (appointment.status === 'completed') {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Cannot cancel a completed appointment');
+    }
+    if (appointment.status !== 'requested' && appointment.status !== 'confirmed') {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        `Cannot cancel an appointment with status "${appointment.status}"`
+      );
+    }
+
+    // Time check: cannot cancel past or ongoing appointment
+    const now = new Date();
+    if (appointment.dateTime.getTime() <= now.getTime()) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Cannot cancel a past or ongoing appointment');
+    }
+
+    // Atomically transition status from requested|confirmed to cancelled
+    const updated = await Appointment.findOneAndUpdate(
+      { _id: appointment._id, status: { $in: ['requested', 'confirmed'] } },
+      { status: 'cancelled' },
+      { new: true }
+    ).populate('doctor', '_id name');
+
+    if (!updated) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Appointment is already cancelled');
+    }
+
+    // Release the booked slot so it becomes open again
+    if (appointment.slot) {
+      await Slot.findByIdAndUpdate(appointment.slot, { isBooked: false });
+    }
+
+    return {
+      appointment: {
+        id: updated._id.toString(),
+        doctor: updated.doctor
+          ? {
+              id: (updated.doctor._id || updated.doctor).toString(),
+              name: updated.doctor.name || '',
+            }
+          : null,
+        dateTime: updated.dateTime.toISOString(),
+        endTime: updated.endTime.toISOString(),
+        status: updated.status,
+      },
+    };
+  }
+
+  // Future steps will handle accept, reject, reschedule, complete
+  throw new AppError(400, 'VALIDATION_ERROR', `Action "${action}" is not yet implemented`);
+}
+
 module.exports = {
+  manageAppointment,
   getAppointments,
   bookAppointment,
 };
