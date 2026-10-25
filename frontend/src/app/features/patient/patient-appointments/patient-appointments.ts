@@ -1,13 +1,19 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import {
   AppointmentItem,
   AppointmentStatus,
+  DoctorAvailabilitySlot,
   PaginationInfo,
 } from '../../../core/appointments/appointments.models';
 import { AppointmentsService } from '../../../core/appointments/appointments.service';
+
+export interface DaySlotGroup {
+  dateLabel: string;
+  slots: DoctorAvailabilitySlot[];
+}
 
 @Component({
   selector: 'app-patient-appointments',
@@ -30,6 +36,45 @@ export class PatientAppointments implements OnInit {
 
   protected readonly loading = signal<boolean>(true);
   protected readonly error = signal<string | null>(null);
+  protected readonly actionSuccess = signal<string | null>(null);
+
+  // Cancel state
+  protected readonly cancelTarget = signal<AppointmentItem | null>(null);
+  protected readonly submittingCancel = signal<boolean>(false);
+  protected readonly cancelError = signal<string | null>(null);
+
+  // Reschedule state
+  protected readonly reschedulingAppointmentId = signal<string | null>(null);
+  protected readonly doctorSlots = signal<DoctorAvailabilitySlot[]>([]);
+  protected readonly rescheduleLoading = signal<boolean>(false);
+  protected readonly rescheduleError = signal<string | null>(null);
+  protected readonly selectedNewSlot = signal<DoctorAvailabilitySlot | null>(null);
+  protected readonly submittingReschedule = signal<boolean>(false);
+
+  // Group open slots chronologically by local date
+  protected readonly doctorSlotGroups = computed<DaySlotGroup[]>(() => {
+    const list = this.doctorSlots();
+    const groupsMap = new Map<string, DoctorAvailabilitySlot[]>();
+
+    for (const slot of list) {
+      const date = new Date(slot.startTime);
+      const dayKey = date.toLocaleDateString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      const existing = groupsMap.get(dayKey) ?? [];
+      existing.push(slot);
+      groupsMap.set(dayKey, existing);
+    }
+
+    return Array.from(groupsMap.entries()).map(([dateLabel, groupSlots]) => ({
+      dateLabel,
+      slots: groupSlots,
+    }));
+  });
 
   ngOnInit(): void {
     this.loadAppointments(1);
@@ -40,16 +85,24 @@ export class PatientAppointments implements OnInit {
       return;
     }
     this.activeTab.set(tab);
+    this.reschedulingAppointmentId.set(null);
+    this.cancelTarget.set(null);
+    this.actionSuccess.set(null);
     this.loadAppointments(1);
   }
 
   protected onStatusChange(event: Event): void {
     const select = event.target as HTMLSelectElement;
     this.statusFilter.set(select.value as AppointmentStatus | '');
+    this.reschedulingAppointmentId.set(null);
+    this.cancelTarget.set(null);
+    this.actionSuccess.set(null);
     this.loadAppointments(1);
   }
 
   protected onPageChange(page: number): void {
+    this.reschedulingAppointmentId.set(null);
+    this.cancelTarget.set(null);
     this.loadAppointments(page);
   }
 
@@ -82,6 +135,160 @@ export class PatientAppointments implements OnInit {
       });
   }
 
+  // --- Cancellation actions ---
+
+  protected openCancelModal(apt: AppointmentItem): void {
+    this.cancelTarget.set(apt);
+    this.cancelError.set(null);
+    this.actionSuccess.set(null);
+  }
+
+  protected closeCancelModal(): void {
+    if (!this.submittingCancel()) {
+      this.cancelTarget.set(null);
+      this.cancelError.set(null);
+    }
+  }
+
+  protected confirmCancel(): void {
+    const target = this.cancelTarget();
+    if (!target) return;
+
+    this.submittingCancel.set(true);
+    this.cancelError.set(null);
+
+    this.appointmentsService.manageAppointment(target.id, { action: 'cancel' }).subscribe({
+      next: (response) => {
+        this.submittingCancel.set(false);
+        this.cancelTarget.set(null);
+        this.actionSuccess.set('Appointment cancelled successfully.');
+
+        // Update appointment in current list
+        this.appointments.update((list) =>
+          list.map((a) =>
+            a.id === target.id ? { ...a, status: response.appointment.status } : a,
+          ),
+        );
+      },
+      error: (err: HttpErrorResponse) => {
+        this.submittingCancel.set(false);
+        if (err.status === 0) {
+          this.cancelError.set('Cannot reach the server. Please try again.');
+        } else {
+          this.cancelError.set(err.error?.message || 'Failed to cancel appointment.');
+        }
+      },
+    });
+  }
+
+  // --- Rescheduling actions ---
+
+  protected toggleReschedule(apt: AppointmentItem): void {
+    if (!apt.doctor?.id) return;
+
+    if (this.reschedulingAppointmentId() === apt.id) {
+      this.cancelReschedule();
+      return;
+    }
+
+    this.reschedulingAppointmentId.set(apt.id);
+    this.selectedNewSlot.set(null);
+    this.actionSuccess.set(null);
+    this.loadDoctorSlots(apt.doctor.id, apt.dateTime);
+  }
+
+  protected cancelReschedule(): void {
+    this.reschedulingAppointmentId.set(null);
+    this.selectedNewSlot.set(null);
+    this.rescheduleError.set(null);
+    this.doctorSlots.set([]);
+  }
+
+  protected loadDoctorSlots(doctorId: string, currentStartIso?: string): void {
+    this.rescheduleLoading.set(true);
+    this.rescheduleError.set(null);
+
+    this.appointmentsService.getDoctorAvailability(doctorId).subscribe({
+      next: (response) => {
+        this.rescheduleLoading.set(false);
+        // Exclude the current appointment's time slot
+        const filtered = response.slots.filter((s) => s.startTime !== currentStartIso);
+        this.doctorSlots.set(filtered);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.rescheduleLoading.set(false);
+        if (err.status === 0) {
+          this.rescheduleError.set('Cannot reach the server. Please try again.');
+        } else {
+          this.rescheduleError.set(err.error?.message || 'Failed to load available slots.');
+        }
+      },
+    });
+  }
+
+  protected selectRescheduleSlot(slot: DoctorAvailabilitySlot): void {
+    this.selectedNewSlot.set(slot);
+    this.rescheduleError.set(null);
+  }
+
+  protected confirmReschedule(appointmentId: string, doctorId: string): void {
+    const newSlot = this.selectedNewSlot();
+    if (!newSlot) return;
+
+    this.submittingReschedule.set(true);
+    this.rescheduleError.set(null);
+
+    this.appointmentsService
+      .manageAppointment(appointmentId, {
+        action: 'reschedule',
+        slotId: newSlot.id,
+      })
+      .subscribe({
+        next: (response) => {
+          this.submittingReschedule.set(false);
+          this.reschedulingAppointmentId.set(null);
+          this.selectedNewSlot.set(null);
+          this.actionSuccess.set(
+            'Appointment rescheduled successfully! Status reset to requested for doctor confirmation.',
+          );
+
+          // Update appointment in current list
+          this.appointments.update((list) =>
+            list.map((a) =>
+              a.id === appointmentId
+                ? {
+                    ...a,
+                    dateTime: response.appointment.dateTime,
+                    endTime: response.appointment.endTime,
+                    status: response.appointment.status,
+                  }
+                : a,
+            ),
+          );
+        },
+        error: (err: HttpErrorResponse) => {
+          this.submittingReschedule.set(false);
+          if (err.status === 409) {
+            // Slot taken: show message and refresh available slots immediately
+            this.rescheduleError.set(
+              err.error?.message || 'This slot is already booked. Available slots have been reloaded.',
+            );
+            this.selectedNewSlot.set(null);
+            this.loadDoctorSlots(doctorId);
+          } else if (err.status === 0) {
+            this.rescheduleError.set('Cannot reach the server. Please try again.');
+          } else {
+            this.rescheduleError.set(err.error?.message || 'Failed to reschedule appointment.');
+          }
+        },
+      });
+  }
+
+  protected isActionable(apt: AppointmentItem): boolean {
+    const isFuture = new Date(apt.dateTime).getTime() > Date.now();
+    return isFuture && (apt.status === 'requested' || apt.status === 'confirmed');
+  }
+
   protected formatDate(isoString: string): string {
     const d = new Date(isoString);
     if (isNaN(d.getTime())) return isoString;
@@ -90,6 +297,15 @@ export class PatientAppointments implements OnInit {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+    });
+  }
+
+  protected formatTime(isoString: string): string {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return isoString;
+    return d.toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
     });
   }
 

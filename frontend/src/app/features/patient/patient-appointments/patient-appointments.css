@@ -24,6 +24,22 @@
   font-size: 1rem;
 }
 
+/* Success Banner */
+.success-box {
+  max-width: 100%;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 0.5rem;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.success {
+  margin: 0;
+  color: #065f46;
+  font-weight: 500;
+}
+
 /* Filter controls */
 .filter-card {
   max-width: 100%;
@@ -217,6 +233,44 @@
   color: #475569;
 }
 
+/* Action buttons */
+.appointment-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.button-sm {
+  min-height: 2.25rem;
+  padding: 0 0.95rem;
+  font-size: 0.9rem;
+}
+
+.button-secondary {
+  background: #e2e8f0;
+  color: var(--color-text);
+}
+
+.button-secondary:hover:not(:disabled) {
+  background: #cbd5e1;
+}
+
+.button-danger {
+  background: #dc2626;
+  color: #fff;
+}
+
+.button-danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.button-active {
+  border: 1px solid var(--color-primary);
+  background: #f0fdfa;
+  color: var(--color-primary);
+}
+
 /* Status Badges */
 .badge-status {
   display: inline-flex;
@@ -251,6 +305,178 @@
   background: #fee2e2;
   color: #991b1b;
   border: 1px solid #fecaca;
+}
+
+/* Inline Reschedule Drawer */
+.reschedule-drawer {
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  margin: 1.25rem -1.5rem -1.25rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom-left-radius: 0.75rem;
+  border-bottom-right-radius: 0.75rem;
+}
+
+.reschedule-header h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+  color: #0f172a;
+}
+
+.reschedule-sub {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.reschedule-days {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.day-group {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.85rem 1rem;
+}
+
+.day-label {
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.35rem;
+}
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.5rem;
+}
+
+.slot-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.65rem;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 0.4rem;
+  background: #fff;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.slot-btn:hover {
+  border-color: var(--color-primary);
+  background: #f0fdfa;
+}
+
+.slot-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.slot-btn.is-selected {
+  border-color: var(--color-primary);
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.slot-time {
+  font-size: 0.875rem;
+}
+
+.slot-check {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0f766e;
+}
+
+.reschedule-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.no-slots {
+  color: #64748b;
+  font-style: italic;
+  margin: 0 0 1rem;
+}
+
+.error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.4rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.error-banner .error {
+  color: #b91c1c;
+  font-size: 0.9rem;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Modal Dialog */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-dialog {
+  width: 100%;
+  max-width: 32rem;
+  background: #fff;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+  padding: 1.75rem;
+}
+
+.modal-dialog h2 {
+  margin: 0 0 1rem;
+  font-size: 1.4rem;
+  color: #0f172a;
+}
+
+.modal-dialog p {
+  margin: 0 0 0.75rem;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.modal-hint {
+  font-size: 0.875rem;
+  color: #64748b !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
 }
 
 /* Pagination */
@@ -290,5 +516,13 @@
 
   .select-control {
     flex: 1;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions button {
+    width: 100%;
   }
 }
