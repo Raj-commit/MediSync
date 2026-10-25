@@ -1,0 +1,146 @@
+<main class="container">
+  <div class="page-header">
+    <a routerLink="/patient" class="back-link">&larr; Back to Dashboard</a>
+    <h1>My Appointments</h1>
+    <p class="subtitle">View and manage your consultation schedule and history.</p>
+  </div>
+
+  <section class="card filter-card">
+    <div class="filter-controls">
+      <div class="tabs" role="tablist" aria-label="Appointment timeline">
+        <button
+          type="button"
+          role="tab"
+          class="tab-button"
+          [class.active]="activeTab() === 'upcoming'"
+          [attr.aria-selected]="activeTab() === 'upcoming'"
+          (click)="setTab('upcoming')"
+        >
+          Upcoming
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="tab-button"
+          [class.active]="activeTab() === 'past'"
+          [attr.aria-selected]="activeTab() === 'past'"
+          (click)="setTab('past')"
+        >
+          Past
+        </button>
+      </div>
+
+      <div class="status-filter">
+        <label for="status-select">Status</label>
+        <select
+          id="status-select"
+          class="select-control"
+          [value]="statusFilter()"
+          (change)="onStatusChange($event)"
+        >
+          <option value="">All statuses</option>
+          <option value="requested">Requested</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  @if (loading()) {
+    <div class="card state-box" aria-live="polite">
+      <p>Loading appointments...</p>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="card error-box" role="alert">
+      <p class="error">{{ error() }}</p>
+      <button
+        type="button"
+        class="button button-secondary"
+        (click)="loadAppointments(pagination().page)"
+      >
+        Try again
+      </button>
+    </div>
+  }
+
+  @if (!loading() && !error()) {
+    @if (appointments().length === 0) {
+      <div class="card empty-box">
+        <h2>No appointments found</h2>
+        @if (activeTab() === 'upcoming') {
+          <p>You have no upcoming appointments scheduled.</p>
+          <div class="empty-actions">
+            <a routerLink="/patient/doctors" class="button">Find a doctor</a>
+          </div>
+        } @else {
+          <p>You have no past consultation history.</p>
+        }
+      </div>
+    } @else {
+      <div class="results-header">
+        <p class="results-count">
+          Showing {{ appointments().length }} of {{ pagination().total }} appointment{{ pagination().total === 1 ? '' : 's' }}
+        </p>
+      </div>
+
+      <ul class="appointment-list" aria-label="Appointments list">
+        @for (apt of appointments(); track apt.id) {
+          <li class="card appointment-card">
+            <div class="appointment-main">
+              <div class="appointment-header">
+                <h2 class="doctor-name">
+                  {{ apt.doctor?.name ? 'Dr. ' + apt.doctor?.name : 'Doctor' }}
+                </h2>
+                <span
+                  class="badge badge-status"
+                  [class]="'badge-' + apt.status"
+                  [attr.aria-label]="'Status: ' + getStatusLabel(apt.status)"
+                >
+                  {{ getStatusLabel(apt.status) }}
+                </span>
+              </div>
+
+              <div class="appointment-time">
+                <span class="time-date">{{ formatDate(apt.dateTime) }}</span>
+                <span class="time-separator">&bull;</span>
+                <span class="time-hours">{{ formatTimeRange(apt.dateTime, apt.endTime) }}</span>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+
+      @if (pagination().totalPages > 1) {
+        <nav class="pagination-nav" aria-label="Appointments pagination">
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page <= 1 || loading()"
+            (click)="onPageChange(pagination().page - 1)"
+            aria-label="Previous page"
+          >
+            &larr; Previous
+          </button>
+
+          <span class="page-indicator" aria-current="page">
+            Page {{ pagination().page }} of {{ pagination().totalPages }}
+          </span>
+
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page >= pagination().totalPages || loading()"
+            (click)="onPageChange(pagination().page + 1)"
+            aria-label="Next page"
+          >
+            Next &rarr;
+          </button>
+        </nav>
+      }
+    }
+  }
+</main>
