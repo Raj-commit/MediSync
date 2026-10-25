@@ -29,6 +29,15 @@ export const routes: Routes = [
     title: 'Book appointment | MediSync',
   },
   {
+    path: 'patient/profile',
+    canActivate: [roleGuard('patient')],
+    loadComponent: () =>
+      import('./features/patient/patient-profile/patient-profile').then(
+        (m) => m.PatientProfile,
+      ),
+    title: 'Patient profile | MediSync',
+  },
+  {
     path: 'patient',
     canActivate: [roleGuard('patient')],
     loadComponent: () =>
@@ -43,6 +52,15 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/doctor/availability/availability').then((m) => m.Availability),
     title: 'Doctor availability | MediSync',
+  },
+  {
+    path: 'doctor/profile',
+    canActivate: [roleGuard('doctor')],
+    loadComponent: () =>
+      import('./features/doctor/doctor-profile/doctor-profile').then(
+        (m) => m.DoctorProfile,
+      ),
+    title: 'Doctor profile | MediSync',
   },
   {
     path: 'doctor',

@@ -2,14 +2,14 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-24  by: Alis
+Last updated: 2026-10-25  by: Alis
 
 ## Current work
 
-- Branch: `feature/appointment-booking-ui`
-- Feature: appointment-booking (UI done, frontend)
-- Last thing finished: FR-08 frontend implementation: /patient/doctors (doctor search with name and specialisation filters, pagination, empty states, roleGuard, patient dashboard link) and /patient/doctors/:id (doctor booking with slot grouping by local day, slot selection bar, in-page confirmation card on 201, 409 SLOT_TAKEN error handling and automatic slot refresh, double-submission lock, full Vitest coverage with 16 component tests and 6 service tests passing)
-- Next step: Open PR for feature/appointment-booking-ui; appointment-management API (feature/appointment-management-api, FR-09 & FR-10)
+- Branch: `feature/profiles-ui`
+- Feature: profiles (UI done, frontend)
+- Last thing finished: FR-05 & FR-06 frontend implementation: /patient/profile and /doctor/profile pages with read-only email, role-specific validations matching validateProfile.js, dirty-fields-only partial updates via PUT /users/me, welcome name sync in AuthService session & localStorage, error alerts, success banners, dashboard links, and full Vitest unit test coverage (19 component tests, 4 profile service tests, 10 auth service tests passing)
+- Next step: Open PR for feature/profiles-ui; appointment-management API (feature/appointment-management-api, FR-09 & FR-10)
 - Blockers or open questions: none
 
 ## Feature status
@@ -20,9 +20,9 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 |---|---|---|---|---|---|
 | 1 | project-setup | done | n/a | Team | Backend skeleton, Django wiring and frontend shell are on main |
 | 2 | auth | done | done | Alis (API), Uday Raj (UI) | API merged in PR #14, UI in PR #12. Seed the admin with node scripts/seed-admin.js |
-| 3 | profiles | done | not started | Hitanshu | GET & PUT /users/me, GET /doctors with search & pagination, 100% test coverage |
+| 3 | profiles | done | done | Hitanshu (API), Alis (UI) | GET & PUT /users/me, GET /doctors with search & pagination. UI at /patient/profile and /doctor/profile with dirty-field updates, full Vitest coverage |
 | 4 | doctor-availability | done | done | Riyank (API), Uday Raj (UI) | API merged in PR #19. UI at /doctor/availability with range generator, booked slot protection, full Vitest coverage |
-| 5 | appointment-booking | done | done | Alis | Merged in PR #20 (API). UI at /patient/doctors and /patient/doctors/:id with slot selection, conflict reload, in-page confirmation, full Vitest coverage |
+| 5 | appointment-booking | done | done | Alis | Merged in PR #20 (API) and PR #22 (UI). UI at /patient/doctors and /patient/doctors/:id with slot selection, conflict reload, in-page confirmation, full Vitest coverage |
 | 6 | appointment-management | not started | not started | | |
 | 7 | notifications | not started | not started | | |
 | 8 | chat | not started | not started | | |
@@ -85,6 +85,9 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-24 | Doctor details handling (Option 1): Passed through router navigation state (`state: { doctor }`) from search list; on direct navigation or refresh, falls back to `GET /doctors/:id/availability` doctor metadata | Fast immediate transition with qualification & specialisations when coming from search, reliable fallback on direct URL/refresh |
 | 2026-10-24 | Booking confirmation view (Option 1): On 201 response, booking screen is replaced with an in-page confirmation card displaying doctor name, local appointment time, `requested` status badge with explanation, and navigation buttons (`[Book another appointment]` -> `/patient/doctors`, `[Back to Dashboard]` -> `/patient`) | Clean user reassurance without full page reload; makes next steps clear |
 | 2026-10-24 | Slot conflict handling: On 409 `SLOT_TAKEN`, displays the server's error message, clears current slot selection, and immediately refreshes the doctor's open availability slots | Seamless recovery for patient if another user books the slot concurrently |
+| 2026-10-25 | Separate profile routes & components (Option 1): `/patient/profile` (`roleGuard('patient')`) and `/doctor/profile` (`roleGuard('doctor')`), linked from dashboards | Separates patient and doctor forms and validations cleanly without dynamic control toggling, matches existing feature layout |
+| 2026-10-25 | Welcome name sync (Option 1): `AuthService.updateUser({ name })` updates the stored user signal and `localStorage` on successful profile save | Dashboards immediately reflect the updated name without requiring re-login |
+| 2026-10-25 | Profile update payload: UI sends strictly modified (dirty) fields in `PUT /users/me`, email is rendered read-only and never transmitted | Complies with backend validation rejecting email, role, id, and cross-role fields |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 

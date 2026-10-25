@@ -84,7 +84,7 @@ describe('Availability Component', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(page.textContent).toContain('No upcoming slots');
+    expect(page.textContent).toContain('No upcoming availability');
   });
 
   it.skip('ensures booked slots cannot be removed and have locked indicators', async () => {

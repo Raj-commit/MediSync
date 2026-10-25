@@ -2,5 +2,8 @@
   <h1>Patient dashboard</h1>
   <p>Welcome, {{ auth.user()?.name }}.</p>
   <p>Your appointments, medical records and prescriptions will appear here.</p>
-  <p><a routerLink="/patient/doctors" class="button">Find a doctor</a></p>
+  <div class="dashboard-actions">
+    <a routerLink="/patient/doctors" class="button">Find a doctor</a>
+    <a routerLink="/patient/profile" class="button button-secondary">My profile</a>
+  </div>
 </section>
