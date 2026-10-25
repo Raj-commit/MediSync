@@ -55,6 +55,46 @@ export interface BookedAppointment {
   status: 'requested' | 'confirmed' | 'completed' | 'cancelled';
 }
 
+export type AppointmentStatus = 'requested' | 'confirmed' | 'completed' | 'cancelled';
+
+export interface AppointmentItem {
+  id: string;
+  doctor?: {
+    id: string;
+    name: string;
+  } | null;
+  patient?: {
+    id: string;
+    name: string;
+  } | null;
+  dateTime: string;
+  endTime: string;
+  status: AppointmentStatus;
+}
+
+export interface AppointmentListResponse {
+  appointments: AppointmentItem[];
+  pagination: PaginationInfo;
+}
+
+export interface GetAppointmentsParams {
+  status?: AppointmentStatus;
+  when?: 'upcoming' | 'past';
+  page?: number;
+  limit?: number;
+}
+
+export type AppointmentAction = 'cancel' | 'reschedule' | 'accept' | 'reject' | 'complete';
+
+export interface AppointmentActionRequest {
+  action: AppointmentAction;
+  slotId?: string;
+}
+
+export interface ManageAppointmentResponse {
+  appointment: AppointmentItem;
+}
+
 export interface BookAppointmentResponse {
   appointment: BookedAppointment;
 }

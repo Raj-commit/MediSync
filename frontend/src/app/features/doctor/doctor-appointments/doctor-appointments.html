@@ -1,0 +1,258 @@
+<main class="container">
+  <div class="page-header">
+    <a routerLink="/doctor" class="back-link">&larr; Back to Dashboard</a>
+    <h1>My Appointments</h1>
+    <p class="subtitle">Manage patient consultations, confirm requests, and review attendance.</p>
+  </div>
+
+  @if (actionSuccess()) {
+    <div class="card success-box" role="status" aria-live="polite">
+      <p class="success">{{ actionSuccess() }}</p>
+    </div>
+  }
+
+  @if (actionError()) {
+    <div class="card error-box" role="alert">
+      <p class="error">{{ actionError() }}</p>
+    </div>
+  }
+
+  <section class="card filter-card">
+    <div class="filter-controls">
+      <div class="tabs" role="tablist" aria-label="Appointment timeline">
+        <button
+          type="button"
+          role="tab"
+          class="tab-button"
+          [class.active]="activeTab() === 'upcoming'"
+          [attr.aria-selected]="activeTab() === 'upcoming'"
+          (click)="setTab('upcoming')"
+        >
+          Upcoming
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="tab-button"
+          [class.active]="activeTab() === 'past'"
+          [attr.aria-selected]="activeTab() === 'past'"
+          (click)="setTab('past')"
+        >
+          Past
+        </button>
+      </div>
+
+      <div class="status-filter">
+        <label for="doctor-status-select">Status</label>
+        <select
+          id="doctor-status-select"
+          class="select-control"
+          [value]="statusFilter()"
+          (change)="onStatusChange($event)"
+        >
+          <option value="">All statuses</option>
+          <option value="requested">Requested</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  @if (loading()) {
+    <div class="card state-box" aria-live="polite">
+      <p>Loading appointments...</p>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="card error-box" role="alert">
+      <p class="error">{{ error() }}</p>
+      <button
+        type="button"
+        class="button button-secondary"
+        (click)="loadAppointments(pagination().page)"
+      >
+        Try again
+      </button>
+    </div>
+  }
+
+  @if (!loading() && !error()) {
+    @if (appointments().length === 0) {
+      <div class="card empty-box">
+        <h2>No appointments found</h2>
+        @if (activeTab() === 'upcoming') {
+          <p>You have no upcoming patient appointments scheduled.</p>
+          <div class="empty-actions">
+            <a routerLink="/doctor/availability" class="button">Manage availability</a>
+          </div>
+        } @else {
+          <p>You have no past appointment history.</p>
+        }
+      </div>
+    } @else {
+      <div class="results-header">
+        <p class="results-count">
+          Showing {{ appointments().length }} of {{ pagination().total }} appointment{{ pagination().total === 1 ? '' : 's' }}
+        </p>
+      </div>
+
+      <ul class="appointment-list" aria-label="Doctor appointments list">
+        @for (apt of appointments(); track apt.id) {
+          <li class="card appointment-card">
+            <div class="appointment-main">
+              <div class="appointment-header">
+                <h2 class="patient-name">
+                  {{ apt.patient?.name ? apt.patient?.name : 'Patient' }}
+                </h2>
+                <span
+                  class="badge badge-status"
+                  [class]="'badge-' + apt.status"
+                  [attr.aria-label]="'Status: ' + getStatusLabel(apt.status)"
+                >
+                  {{ getStatusLabel(apt.status) }}
+                </span>
+              </div>
+
+              <div class="appointment-time">
+                <span class="time-date">{{ formatDate(apt.dateTime) }}</span>
+                <span class="time-separator">&bull;</span>
+                <span class="time-hours">{{ formatTimeRange(apt.dateTime, apt.endTime) }}</span>
+              </div>
+
+              @if (canAccept(apt) || canReject(apt) || canComplete(apt)) {
+                <div class="appointment-actions">
+                  @if (canAccept(apt)) {
+                    <button
+                      type="button"
+                      class="button button-sm button-accept"
+                      [disabled]="submittingActionId() === apt.id"
+                      (click)="acceptAppointment(apt)"
+                    >
+                      @if (submittingActionId() === apt.id) {
+                        Accepting...
+                      } @else {
+                        Accept
+                      }
+                    </button>
+                  }
+
+                  @if (canReject(apt)) {
+                    <button
+                      type="button"
+                      class="button button-danger button-sm"
+                      [disabled]="submittingActionId() === apt.id"
+                      (click)="openRejectModal(apt)"
+                    >
+                      Reject
+                    </button>
+                  }
+
+                  @if (canComplete(apt)) {
+                    <button
+                      type="button"
+                      class="button button-sm button-complete"
+                      [disabled]="submittingActionId() === apt.id"
+                      (click)="completeAppointment(apt)"
+                    >
+                      @if (submittingActionId() === apt.id) {
+                        Completing...
+                      } @else {
+                        Mark completed
+                      }
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+
+      @if (pagination().totalPages > 1) {
+        <nav class="pagination-nav" aria-label="Appointments pagination">
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page <= 1 || loading()"
+            (click)="onPageChange(pagination().page - 1)"
+            aria-label="Previous page"
+          >
+            &larr; Previous
+          </button>
+
+          <span class="page-indicator" aria-current="page">
+            Page {{ pagination().page }} of {{ pagination().totalPages }}
+          </span>
+
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page >= pagination().totalPages || loading()"
+            (click)="onPageChange(pagination().page + 1)"
+            aria-label="Next page"
+          >
+            Next &rarr;
+          </button>
+        </nav>
+      }
+    }
+  }
+
+  <!-- Reject Confirmation Modal Dialog -->
+  @if (rejectTarget(); as target) {
+    <div
+      class="modal-backdrop"
+      (click)="closeRejectModal()"
+      (keydown.escape)="closeRejectModal()"
+      tabindex="-1"
+    >
+      <div
+        class="modal-dialog card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reject-dialog-title"
+        (click)="$event.stopPropagation()"
+      >
+        <h2 id="reject-dialog-title">Reject appointment request</h2>
+        <p>
+          Are you sure you want to reject the appointment request from
+          <strong>{{ target.patient?.name }}</strong> on
+          <strong>{{ formatDate(target.dateTime) }}</strong> ({{ formatTimeRange(target.dateTime, target.endTime) }})?
+        </p>
+        <p class="modal-hint">The slot will be released back into your open schedule for other patients.</p>
+
+        @if (rejectError()) {
+          <div class="error-banner" role="alert">
+            <p class="error">{{ rejectError() }}</p>
+          </div>
+        }
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="button button-danger"
+            [disabled]="submittingReject()"
+            (click)="confirmReject()"
+          >
+            @if (submittingReject()) {
+              Rejecting...
+            } @else {
+              Yes, reject appointment
+            }
+          </button>
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="submittingReject()"
+            (click)="closeRejectModal()"
+          >
+            Keep requested
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</main>

@@ -1,0 +1,312 @@
+<main class="container">
+  <div class="page-header">
+    <a routerLink="/patient" class="back-link">&larr; Back to Dashboard</a>
+    <h1>My Appointments</h1>
+    <p class="subtitle">View and manage your consultation schedule and history.</p>
+  </div>
+
+  @if (actionSuccess()) {
+    <div class="card success-box" role="status" aria-live="polite">
+      <p class="success">{{ actionSuccess() }}</p>
+    </div>
+  }
+
+  <section class="card filter-card">
+    <div class="filter-controls">
+      <div class="tabs" role="tablist" aria-label="Appointment timeline">
+        <button
+          type="button"
+          role="tab"
+          class="tab-button"
+          [class.active]="activeTab() === 'upcoming'"
+          [attr.aria-selected]="activeTab() === 'upcoming'"
+          (click)="setTab('upcoming')"
+        >
+          Upcoming
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="tab-button"
+          [class.active]="activeTab() === 'past'"
+          [attr.aria-selected]="activeTab() === 'past'"
+          (click)="setTab('past')"
+        >
+          Past
+        </button>
+      </div>
+
+      <div class="status-filter">
+        <label for="status-select">Status</label>
+        <select
+          id="status-select"
+          class="select-control"
+          [value]="statusFilter()"
+          (change)="onStatusChange($event)"
+        >
+          <option value="">All statuses</option>
+          <option value="requested">Requested</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  @if (loading()) {
+    <div class="card state-box" aria-live="polite">
+      <p>Loading appointments...</p>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="card error-box" role="alert">
+      <p class="error">{{ error() }}</p>
+      <button
+        type="button"
+        class="button button-secondary"
+        (click)="loadAppointments(pagination().page)"
+      >
+        Try again
+      </button>
+    </div>
+  }
+
+  @if (!loading() && !error()) {
+    @if (appointments().length === 0) {
+      <div class="card empty-box">
+        <h2>No appointments found</h2>
+        @if (activeTab() === 'upcoming') {
+          <p>You have no upcoming appointments scheduled.</p>
+          <div class="empty-actions">
+            <a routerLink="/patient/doctors" class="button">Find a doctor</a>
+          </div>
+        } @else {
+          <p>You have no past consultation history.</p>
+        }
+      </div>
+    } @else {
+      <div class="results-header">
+        <p class="results-count">
+          Showing {{ appointments().length }} of {{ pagination().total }} appointment{{ pagination().total === 1 ? '' : 's' }}
+        </p>
+      </div>
+
+      <ul class="appointment-list" aria-label="Appointments list">
+        @for (apt of appointments(); track apt.id) {
+          <li class="card appointment-card">
+            <div class="appointment-main">
+              <div class="appointment-header">
+                <h2 class="doctor-name">
+                  {{ apt.doctor?.name ? 'Dr. ' + apt.doctor?.name : 'Doctor' }}
+                </h2>
+                <span
+                  class="badge badge-status"
+                  [class]="'badge-' + apt.status"
+                  [attr.aria-label]="'Status: ' + getStatusLabel(apt.status)"
+                >
+                  {{ getStatusLabel(apt.status) }}
+                </span>
+              </div>
+
+              <div class="appointment-time">
+                <span class="time-date">{{ formatDate(apt.dateTime) }}</span>
+                <span class="time-separator">&bull;</span>
+                <span class="time-hours">{{ formatTimeRange(apt.dateTime, apt.endTime) }}</span>
+              </div>
+
+              @if (isActionable(apt)) {
+                <div class="appointment-actions">
+                  <button
+                    type="button"
+                    class="button button-secondary button-sm"
+                    [class.button-active]="reschedulingAppointmentId() === apt.id"
+                    [attr.aria-expanded]="reschedulingAppointmentId() === apt.id"
+                    (click)="toggleReschedule(apt)"
+                  >
+                    {{ reschedulingAppointmentId() === apt.id ? 'Close reschedule' : 'Reschedule' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="button button-danger button-sm"
+                    (click)="openCancelModal(apt)"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              }
+            </div>
+
+            <!-- Inline Reschedule Section -->
+            @if (reschedulingAppointmentId() === apt.id) {
+              <section class="reschedule-drawer" aria-label="Reschedule appointment">
+                <div class="reschedule-header">
+                  <h3>Select a new appointment slot</h3>
+                  <p class="reschedule-sub">
+                    Pick an open slot with Dr. {{ apt.doctor?.name }}. The status will reset to requested until confirmed by the doctor.
+                  </p>
+                </div>
+
+                @if (rescheduleLoading()) {
+                  <p class="loading-state" aria-live="polite">Loading available slots...</p>
+                }
+
+                @if (rescheduleError()) {
+                  <div class="error-banner" role="alert">
+                    <p class="error">{{ rescheduleError() }}</p>
+                    <button
+                      type="button"
+                      class="button button-secondary button-sm"
+                      (click)="loadDoctorSlots(apt.doctor!.id, apt.dateTime)"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                }
+
+                @if (!rescheduleLoading() && !rescheduleError()) {
+                  @if (doctorSlotGroups().length === 0) {
+                    <p class="no-slots">
+                      Dr. {{ apt.doctor?.name }} has no other open slots at this time.
+                    </p>
+                  } @else {
+                    <div class="reschedule-days">
+                      @for (group of doctorSlotGroups(); track group.dateLabel) {
+                        <div class="day-group">
+                          <h4 class="day-label">{{ group.dateLabel }}</h4>
+                          <div class="slot-grid">
+                            @for (slot of group.slots; track slot.id) {
+                              <button
+                                type="button"
+                                class="slot-btn"
+                                [class.is-selected]="selectedNewSlot()?.id === slot.id"
+                                [attr.aria-pressed]="selectedNewSlot()?.id === slot.id"
+                                (click)="selectRescheduleSlot(slot)"
+                              >
+                                <span class="slot-time">{{ formatTime(slot.startTime) }}</span>
+                                @if (selectedNewSlot()?.id === slot.id) {
+                                  <span class="slot-check">&check; Selected</span>
+                                }
+                              </button>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                }
+
+                <div class="reschedule-actions">
+                  <button
+                    type="button"
+                    class="button button-sm"
+                    [disabled]="!selectedNewSlot() || submittingReschedule()"
+                    (click)="confirmReschedule(apt.id, apt.doctor!.id)"
+                  >
+                    @if (submittingReschedule()) {
+                      Rescheduling...
+                    } @else {
+                      Confirm reschedule
+                    }
+                  </button>
+                  <button
+                    type="button"
+                    class="button button-secondary button-sm"
+                    [disabled]="submittingReschedule()"
+                    (click)="cancelReschedule()"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </section>
+            }
+          </li>
+        }
+      </ul>
+
+      @if (pagination().totalPages > 1) {
+        <nav class="pagination-nav" aria-label="Appointments pagination">
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page <= 1 || loading()"
+            (click)="onPageChange(pagination().page - 1)"
+            aria-label="Previous page"
+          >
+            &larr; Previous
+          </button>
+
+          <span class="page-indicator" aria-current="page">
+            Page {{ pagination().page }} of {{ pagination().totalPages }}
+          </span>
+
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page >= pagination().totalPages || loading()"
+            (click)="onPageChange(pagination().page + 1)"
+            aria-label="Next page"
+          >
+            Next &rarr;
+          </button>
+        </nav>
+      }
+    }
+  }
+
+  <!-- Cancellation Modal Dialog -->
+  @if (cancelTarget(); as target) {
+    <div
+      class="modal-backdrop"
+      (click)="closeCancelModal()"
+      (keydown.escape)="closeCancelModal()"
+      tabindex="-1"
+    >
+      <div
+        class="modal-dialog card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cancel-dialog-title"
+        (click)="$event.stopPropagation()"
+      >
+        <h2 id="cancel-dialog-title">Cancel appointment</h2>
+        <p>
+          Are you sure you want to cancel your appointment with
+          <strong>Dr. {{ target.doctor?.name }}</strong> on
+          <strong>{{ formatDate(target.dateTime) }}</strong> ({{ formatTimeRange(target.dateTime, target.endTime) }})?
+        </p>
+        <p class="modal-hint">The slot will be released and made available for other patients.</p>
+
+        @if (cancelError()) {
+          <div class="error-banner" role="alert">
+            <p class="error">{{ cancelError() }}</p>
+          </div>
+        }
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="button button-danger"
+            [disabled]="submittingCancel()"
+            (click)="confirmCancel()"
+          >
+            @if (submittingCancel()) {
+              Cancelling...
+            } @else {
+              Yes, cancel appointment
+            }
+          </button>
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="submittingCancel()"
+            (click)="closeCancelModal()"
+          >
+            Keep appointment
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</main>
