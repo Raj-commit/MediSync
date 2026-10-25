@@ -510,8 +510,75 @@ async function manageAppointment(user, appointmentId, body) {
     };
   }
 
-  // Step 5 will handle complete
-  throw new AppError(400, 'VALIDATION_ERROR', `Action "${action}" is not yet implemented`);
+  if (action === 'complete') {
+    if (user.role !== 'doctor') {
+      throw new AppError(403, 'FORBIDDEN', 'Only doctors can complete appointments');
+    }
+
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      doctor: user._id || user.id,
+    });
+
+    if (!appointment) {
+      throw new AppError(404, 'NOT_FOUND', 'Appointment not found');
+    }
+
+    // Status checks
+    if (appointment.status === 'completed') {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Appointment is already completed');
+    }
+    if (appointment.status === 'cancelled') {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Cannot complete a cancelled appointment');
+    }
+    if (appointment.status === 'requested') {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Cannot complete an unconfirmed appointment');
+    }
+    if (appointment.status !== 'confirmed') {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        `Cannot complete an appointment with status "${appointment.status}"`
+      );
+    }
+
+    // Time check: cannot complete a future appointment before it starts
+    const now = new Date();
+    if (appointment.dateTime.getTime() > now.getTime()) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'Cannot complete a future appointment before its scheduled start time'
+      );
+    }
+
+    const updated = await Appointment.findOneAndUpdate(
+      { _id: appointment._id, status: 'confirmed' },
+      { status: 'completed' },
+      { new: true }
+    ).populate('patient', '_id name');
+
+    if (!updated) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Appointment could not be completed');
+    }
+
+    return {
+      appointment: {
+        id: updated._id.toString(),
+        patient: updated.patient
+          ? {
+              id: (updated.patient._id || updated.patient).toString(),
+              name: updated.patient.name || '',
+            }
+          : null,
+        dateTime: updated.dateTime.toISOString(),
+        endTime: updated.endTime.toISOString(),
+        status: updated.status,
+      },
+    };
+  }
+
+  throw new AppError(400, 'VALIDATION_ERROR', `Unsupported action: "${action}"`);
 }
 
 module.exports = {
