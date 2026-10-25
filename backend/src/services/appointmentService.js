@@ -1,7 +1,10 @@
 const { Doctor } = require('../models/User');
 const Slot = require('../models/Slot');
 const Appointment = require('../models/Appointment');
-const { validateAppointmentInput } = require('../utils/validateAppointment');
+const {
+  validateAppointmentInput,
+  validateAppointmentsQuery,
+} = require('../utils/validateAppointment');
 const AppError = require('../utils/AppError');
 
 /**
@@ -99,6 +102,87 @@ async function bookAppointment(patientId, input) {
   };
 }
 
+/**
+ * Lists appointments for the logged-in patient or doctor.
+ * Filters by status, when (upcoming | past), with pagination.
+ * Excludes sensitive fields and strictly populates public identity (id, name).
+ */
+async function getAppointments(user, queryParams) {
+  const { status, when, page, limit } = validateAppointmentsQuery(queryParams);
+
+  const filter = {};
+  if (user.role === 'patient') {
+    filter.patient = user._id || user.id;
+  } else if (user.role === 'doctor') {
+    filter.doctor = user._id || user.id;
+  } else {
+    throw new AppError(403, 'FORBIDDEN', 'You do not have permission to do this');
+  }
+
+  if (status) {
+    filter.status = status;
+  }
+
+  const now = new Date();
+  let sort = { dateTime: -1 }; // default: newest first
+  if (when === 'upcoming') {
+    filter.dateTime = { $gte: now };
+    sort = { dateTime: 1 }; // soonest first
+  } else if (when === 'past') {
+    filter.dateTime = { $lt: now };
+    sort = { dateTime: -1 }; // most recent past first
+  }
+
+  const skip = (page - 1) * limit;
+  const populateField = user.role === 'patient' ? 'doctor' : 'patient';
+
+  const [total, docs] = await Promise.all([
+    Appointment.countDocuments(filter),
+    Appointment.find(filter)
+      .populate(populateField, '_id name')
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+  ]);
+
+  const appointments = docs.map((doc) => {
+    const item = {
+      id: doc._id.toString(),
+      dateTime: doc.dateTime.toISOString(),
+      endTime: doc.endTime.toISOString(),
+      status: doc.status,
+    };
+    if (user.role === 'patient') {
+      item.doctor = doc.doctor
+        ? {
+            id: (doc.doctor._id || doc.doctor).toString(),
+            name: doc.doctor.name || '',
+          }
+        : null;
+    } else {
+      item.patient = doc.patient
+        ? {
+            id: (doc.patient._id || doc.patient).toString(),
+            name: doc.patient.name || '',
+          }
+        : null;
+    }
+    return item;
+  });
+
+  return {
+    appointments,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+    },
+  };
+}
+
 module.exports = {
+  getAppointments,
   bookAppointment,
 };

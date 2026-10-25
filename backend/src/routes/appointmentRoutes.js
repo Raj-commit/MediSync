@@ -5,6 +5,16 @@ const { requireRole } = require('../middleware/requireRole');
 
 const router = express.Router();
 
+// GET /api/v1/appointments
+// A logged-in patient or doctor lists their own appointments.
+// Supports query filters: status, when (upcoming | past), page, limit.
+router.get(
+  '/',
+  authenticate,
+  requireRole('patient', 'doctor'),
+  appointmentController.getAppointments
+);
+
 // POST /api/v1/appointments
 // A logged-in patient books one open slot of one doctor.
 // Order of checks (AGENTS.md section 3 rule 4):

@@ -8,6 +8,14 @@ async function bookAppointment(req, res) {
   res.status(201).json(result);
 }
 
+// GET /api/v1/appointments
+// A logged-in patient or doctor lists their own appointments with optional filtering and pagination.
+async function getAppointments(req, res) {
+  const result = await appointmentService.getAppointments(req.user, req.query);
+  res.status(200).json(result);
+}
+
 module.exports = {
+  getAppointments,
   bookAppointment,
 };

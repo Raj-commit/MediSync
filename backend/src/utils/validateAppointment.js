@@ -91,7 +91,84 @@ function validateAppointmentInput(body) {
   };
 }
 
+const ALLOWED_QUERY_KEYS = ['status', 'when', 'page', 'limit'];
+const ALLOWED_STATUSES = ['requested', 'confirmed', 'completed', 'cancelled'];
+const ALLOWED_WHEN = ['upcoming', 'past'];
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 50;
+
+/**
+ * Validates query parameters for appointment history.
+ * Protects against unexpected keys, invalid status/when values, and bad pagination parameters.
+ */
+function validateAppointmentsQuery(query) {
+  const q =
+    query !== null && typeof query === 'object' && !Array.isArray(query) ? query : {};
+
+  for (const key of Object.keys(q)) {
+    if (!ALLOWED_QUERY_KEYS.includes(key)) {
+      throw new AppError(400, 'VALIDATION_ERROR', `Unknown query parameter: ${key}`);
+    }
+  }
+
+  let status;
+  if (q.status !== undefined) {
+    if (typeof q.status !== 'string' || !ALLOWED_STATUSES.includes(q.status)) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        `status must be one of: ${ALLOWED_STATUSES.join(', ')}`
+      );
+    }
+    status = q.status;
+  }
+
+  let when;
+  if (q.when !== undefined) {
+    if (typeof q.when !== 'string' || !ALLOWED_WHEN.includes(q.when)) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        `when must be one of: ${ALLOWED_WHEN.join(', ')}`
+      );
+    }
+    when = q.when;
+  }
+
+  let page = DEFAULT_PAGE;
+  if (q.page !== undefined) {
+    if (typeof q.page !== 'string' && typeof q.page !== 'number') {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Page must be a positive integer');
+    }
+    const parsedPage = Number(q.page);
+    if (!Number.isInteger(parsedPage) || parsedPage < 1) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Page must be a positive integer');
+    }
+    page = parsedPage;
+  }
+
+  let limit = DEFAULT_LIMIT;
+  if (q.limit !== undefined) {
+    if (typeof q.limit !== 'string' && typeof q.limit !== 'number') {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Limit must be a positive integer');
+    }
+    const parsedLimit = Number(q.limit);
+    if (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > MAX_LIMIT) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        `Limit must be between 1 and ${MAX_LIMIT}`
+      );
+    }
+    limit = parsedLimit;
+  }
+
+  return { status, when, page, limit };
+}
+
 module.exports = {
+  validateAppointmentsQuery,
   validateAppointmentInput,
   parseIsoUtcDate,
 };
