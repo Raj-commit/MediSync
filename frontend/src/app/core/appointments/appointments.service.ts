@@ -4,11 +4,15 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import {
+  AppointmentActionRequest,
+  AppointmentListResponse,
   BookAppointmentRequest,
   BookAppointmentResponse,
   DoctorAvailabilityResponse,
   DoctorSearchParams,
   DoctorSearchResponse,
+  GetAppointmentsParams,
+  ManageAppointmentResponse,
 } from './appointments.models';
 
 @Injectable({
@@ -58,5 +62,43 @@ export class AppointmentsService {
    */
   bookAppointment(payload: BookAppointmentRequest): Observable<BookAppointmentResponse> {
     return this.http.post<BookAppointmentResponse>(this.appointmentsUrl, payload);
+  }
+
+  /**
+   * Lists appointments for the authenticated patient or doctor.
+   * Supports filtering by status, when ('upcoming' | 'past'), and pagination.
+   */
+  getAppointments(params?: GetAppointmentsParams): Observable<AppointmentListResponse> {
+    let httpParams = new HttpParams();
+
+    if (params) {
+      if (params.status) {
+        httpParams = httpParams.set('status', params.status);
+      }
+      if (params.when) {
+        httpParams = httpParams.set('when', params.when);
+      }
+      if (params.page !== undefined && params.page > 0) {
+        httpParams = httpParams.set('page', params.page.toString());
+      }
+      if (params.limit !== undefined && params.limit > 0) {
+        httpParams = httpParams.set('limit', params.limit.toString());
+      }
+    }
+
+    return this.http.get<AppointmentListResponse>(this.appointmentsUrl, { params: httpParams });
+  }
+
+  /**
+   * Manages an appointment (cancel, reschedule, accept, reject, complete).
+   */
+  manageAppointment(
+    appointmentId: string,
+    payload: AppointmentActionRequest,
+  ): Observable<ManageAppointmentResponse> {
+    return this.http.patch<ManageAppointmentResponse>(
+      `${this.appointmentsUrl}/${encodeURIComponent(appointmentId)}`,
+      payload,
+    );
   }
 }
