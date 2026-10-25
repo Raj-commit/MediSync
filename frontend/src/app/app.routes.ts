@@ -56,6 +56,15 @@ export const routes: Routes = [
     title: 'Patient dashboard | MediSync',
   },
   {
+    path: 'doctor/appointments',
+    canActivate: [roleGuard('doctor')],
+    loadComponent: () =>
+      import('./features/doctor/doctor-appointments/doctor-appointments').then(
+        (m) => m.DoctorAppointments,
+      ),
+    title: 'My appointments | MediSync',
+  },
+  {
     path: 'doctor/availability',
     canActivate: [roleGuard('doctor')],
     loadComponent: () =>
