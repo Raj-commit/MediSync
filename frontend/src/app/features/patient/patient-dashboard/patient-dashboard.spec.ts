@@ -9,7 +9,7 @@ import { PatientDashboard } from './patient-dashboard';
 describe('PatientDashboard', () => {
   afterEach(() => localStorage.clear());
 
-  it('greets the logged-in patient and displays link to find a doctor', async () => {
+  it('greets the logged-in patient and displays links to find a doctor and view profile', async () => {
     localStorage.setItem('medisync.token', fakeJwt(3600));
     localStorage.setItem(
       'medisync.user',
@@ -27,5 +27,6 @@ describe('PatientDashboard', () => {
     expect(page.querySelector('h1')?.textContent).toContain('Patient dashboard');
     expect(page.textContent).toContain('Welcome, Asha Patel.');
     expect(page.querySelector('a[routerLink="/patient/doctors"]')).not.toBeNull();
+    expect(page.querySelector('a[routerLink="/patient/profile"]')).not.toBeNull();
   });
 });

@@ -1,0 +1,44 @@
+<section class="card profile-card">
+  <h1>Patient Profile</h1>
+
+  @if (loading()) {
+    <p class="status-message" role="status">Loading profile...</p>
+  } @else if (errorMessage(); as error) {
+    <div class="error-box" role="alert">
+      <p class="error">{{ error }}</p>
+      <button type="button" class="button button-secondary" (click)="loadProfile()">Try again</button>
+    </div>
+  } @else if (profile(); as user) {
+    <div class="profile-details">
+      <div class="field">
+        <label for="profile-name">Full name</label>
+        <input id="profile-name" type="text" [value]="user.name" readonly />
+      </div>
+
+      <div class="field">
+        <label for="profile-email">Email</label>
+        <input id="profile-email" type="email" [value]="user.email" disabled />
+        <p class="hint">Email address cannot be changed.</p>
+      </div>
+
+      <div class="field">
+        <label for="profile-phone">Phone number</label>
+        <input id="profile-phone" type="tel" [value]="user.phone" readonly />
+      </div>
+
+      <div class="field">
+        <label for="profile-dob">Date of birth</label>
+        <input id="profile-dob" type="text" [value]="user.dateOfBirth || 'Not provided'" readonly />
+      </div>
+
+      <div class="field">
+        <label for="profile-address">Address</label>
+        <textarea id="profile-address" rows="3" readonly>{{ user.address || 'Not provided' }}</textarea>
+      </div>
+
+      <div class="actions">
+        <a routerLink="/patient" class="button button-secondary">Back to Dashboard</a>
+      </div>
+    </div>
+  }
+</section>

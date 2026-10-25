@@ -29,6 +29,15 @@ export const routes: Routes = [
     title: 'Book appointment | MediSync',
   },
   {
+    path: 'patient/profile',
+    canActivate: [roleGuard('patient')],
+    loadComponent: () =>
+      import('./features/patient/patient-profile/patient-profile').then(
+        (m) => m.PatientProfile,
+      ),
+    title: 'Patient profile | MediSync',
+  },
+  {
     path: 'patient',
     canActivate: [roleGuard('patient')],
     loadComponent: () =>
