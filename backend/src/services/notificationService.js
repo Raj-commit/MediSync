@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { Notification, NOTIFICATION_TYPES } = require('../models/Notification');
+const { validateNotificationsQuery } = require('../utils/validateNotification');
 const AppError = require('../utils/AppError');
 
 // Template generators: plain text messages with no sensitive PII,
@@ -74,8 +75,53 @@ async function createNotification({ recipient, type, message, appointment }) {
   return notification;
 }
 
+/**
+ * Lists notifications for the authenticated user, ordered newest first.
+ * Supports status filtering ('unread', 'read') and pagination.
+ * Computes unreadCount for the notification badge.
+ */
+async function getNotifications(user, queryParams) {
+  if (user.role !== 'patient' && user.role !== 'doctor') {
+    throw new AppError(403, 'FORBIDDEN', 'You do not have permission to do this');
+  }
+
+  const { status, page, limit } = validateNotificationsQuery(queryParams);
+
+  const recipientId = user._id || user.id;
+  const filter = { recipient: recipientId };
+  if (status) {
+    filter.status = status;
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [total, unreadCount, docs] = await Promise.all([
+    Notification.countDocuments(filter),
+    Notification.countDocuments({ recipient: recipientId, status: 'unread' }),
+    Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+  ]);
+
+  const notifications = docs.map(serializeNotification);
+
+  return {
+    notifications,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+    },
+    unreadCount,
+  };
+}
+
 module.exports = {
   createNotification,
+  getNotifications,
   serializeNotification,
   templates,
 };
