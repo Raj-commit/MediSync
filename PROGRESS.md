@@ -2,14 +2,14 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-26  by: Riyank
+Last updated: 2026-10-26  by: Hitanshu
 
 ## Current work
 
-- Branch: `feature/appointment-management-ui`
-- Feature: appointment-management (UI done, frontend)
-- Last thing finished: FR-09 & FR-10 frontend implementation: /patient/appointments and /doctor/appointments with Upcoming/Past segmented tabs, status filtering, pagination, patient cancel (with accessible confirmation dialog), patient reschedule (with inline slot picker and 409 SLOT_TAKEN auto-reload), doctor accept, reject (with confirmation dialog), and complete actions, full Vitest coverage (appointments.service.spec.ts, patient-appointments.spec.ts, doctor-appointments.spec.ts)
-- Next step: Open PR for feature/appointment-management-ui; notifications (FR-18)
+- Branch: `feature/notifications-api`
+- Feature: notifications (API done, backend)
+- Last thing finished: FR-18 (Notifications, UC-13) backend API implementation: Notification model, notification service with safe plain-text templates, appointment booking and lifecycle hooks (request, confirm, decline, cancel, reschedule, complete), GET /api/v1/notifications with filtering, pagination, and unreadCount, PATCH /api/v1/notifications/:id/read (idempotent, anti-enumeration 404), background reminder job (checkAndSendReminders, APPOINTMENT_REMINDER_MINUTES), Socket.IO live delivery (sendNotificationToUser), 29 automated integration tests covering all requirements with 100% pass across all 213 backend tests
+- Next step: Open PR for feature/notifications-api; start feature/notifications-ui (FR-18 frontend)
 - Blockers or open questions: none
 
 ## Feature status
@@ -24,7 +24,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 4 | doctor-availability | done | done | Riyank (API), Uday Raj (UI) | API merged in PR #19. UI at /doctor/availability with range generator, booked slot protection, full Vitest coverage |
 | 5 | appointment-booking | done | done | Alis | Merged in PR #20 (API) and PR #22 (UI). UI at /patient/doctors and /patient/doctors/:id with slot selection, conflict reload, in-page confirmation, full Vitest coverage |
 | 6 | appointment-management | done | done | Uday Raj (API), Riyank(UI) | Merged in PR #23 (API). UI at /patient/appointments and /doctor/appointments with cancel, reschedule, accept, reject, complete, full Vitest coverage |
-| 7 | notifications | not started | not started | | |
+| 7 | notifications | done | not started | Hitanshu | Full appointment lifecycle notifications, GET & PATCH /read endpoints, reminder job with deduplication, Socket.IO live push, 29 tests |
 | 8 | chat | not started | not started | | |
 | 9 | video-consultation | not started | not started | | |
 | 10 | medical-records | not started | not started | | |
@@ -97,12 +97,20 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-26 | Inline rescheduling drawer (Choice b): clicking Reschedule expands an inline slot selector loaded via `GET /doctors/:id/availability`; on 409 `SLOT_TAKEN`, automatically refreshes open slots and clears selection | Smooth user experience keeping card context without page reloads or full modal navigation; immediate conflict recovery |
 | 2026-10-26 | Upcoming vs Past timeline tabs (Choice c): segmented tabs for Upcoming and Past with separate Status dropdown (`All`, `Requested`, `Confirmed`, `Completed`, `Cancelled`) | Matches natural clinical workflow and mental model; keyboard accessible with `role="tablist"` and `aria-selected` |
 | 2026-10-26 | Confirmation dialogs for destructive actions: accessible modal dialogs for patient cancel and doctor reject (`role="dialog"`, `aria-modal="true"`, ESC key listener) | Prevents accidental appointment cancellations and doctor slot rejections |
+| 2026-10-26 | Notification response shapes: `GET /api/v1/notifications` returns `{ notifications: [{ id, type, message, status, appointment, createdAt }], pagination: { page, limit, total, totalPages }, unreadCount }`. `PATCH /api/v1/notifications/:id/read` returns `{ notification: { id, type, message, status, appointment, createdAt } }`. Admins receive 403 `FORBIDDEN` | Matches UI requirements, provides badge count in the same roundtrip, and strictly isolates patient and doctor notification lists |
+| 2026-10-26 | 8 Notification types with plain-text safe templates: `appointment_requested`, `appointment_request_sent`, `appointment_confirmed`, `appointment_rejected`, `appointment_cancelled`, `appointment_rescheduled`, `appointment_completed`, `appointment_reminder`. Templates contain no emails, phones, passwords, medical diagnosis data, or localized dates/times | Complies with AGENTS.md section 8 privacy rules and ensures consistency across notification channels |
+| 2026-10-26 | Anti-enumeration on notification read: `PATCH /api/v1/notifications/:id/read` returns 404 `NOT_FOUND` if notification does not exist OR belongs to another user; non-empty body is rejected with 400 `VALIDATION_ERROR`; marking already read notification is idempotent (200) | Prevents attackers from probing notification existence and protects unauthorized state mutations |
+| 2026-10-26 | Non-blocking notification delivery: notification generation inside appointment booking and lifecycle transitions is wrapped in `try / catch` so failures never abort, rollback, or alter appointment responses | Preserves clinical transaction reliability: booking and appointment updates always succeed even if the notification store or socket is degraded |
+| 2026-10-26 | Reminder job deduplication via `reminderSent`: `Appointment.reminderSent` (default false) is set to true when reminder is sent for an appointment within the window (default `APPOINTMENT_REMINDER_MINUTES=60`); checks only confirmed future appointments | Prevents duplicate reminders across service restarts or scheduled periodic runs |
+| 2026-10-26 | Socket.IO room isolation: authenticated socket connections join private room `user:<userId>`; notifications broadcast directly to recipient room upon creation | Enables instant real-time UI updates without polling or exposing notifications to unauthorized sockets |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
 - Added the optional env variable `ADMIN_PHONE` (default placeholder +910000000000), because the User model requires a phone for every user, including the admin.
 - Added the env variable `MONGODB_URI_TEST` for the separate test database.
-- Booking does not trigger asynchronous notifications yet. The notifications feature (FR-18) will hook in once built.
+- Added the env variable `APPOINTMENT_REMINDER_MINUTES` (default 60) for appointment reminder window configuration.
+- Added `reminderSent` (Boolean, default false) to the `Appointment` model to prevent duplicate reminder notifications.
+- Added optional `appointment` (ObjectId reference to `Appointment`) to the `Notification` model to allow direct linking between notifications and their associated appointments.
 - Stored `endTime` (Date) and `slot` (ObjectId reference to `Slot`) on the `Appointment` model to maintain slot lifecycle integrity and easy duration queries.
 
 ## Known issues
