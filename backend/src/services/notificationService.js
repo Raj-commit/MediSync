@@ -24,6 +24,10 @@ const templates = {
     `Appointment with ${patientName ? patientName.trim() : 'a patient'} was rescheduled.`,
   appointmentCompleted: (doctorName) =>
     `Your consultation with Dr. ${doctorName ? doctorName.trim() : 'your doctor'} has been completed.`,
+  appointmentReminder: (doctorName) =>
+    `You have an upcoming appointment with Dr. ${doctorName ? doctorName.trim() : 'your doctor'}.`,
+  appointmentReminderDoctor: (patientName) =>
+    `You have an upcoming appointment with ${patientName ? patientName.trim() : 'a patient'}.`,
 };
 
 /**
