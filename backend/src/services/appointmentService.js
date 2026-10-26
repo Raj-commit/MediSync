@@ -1,4 +1,5 @@
-const { Doctor } = require('../models/User');
+const { User, Doctor } = require('../models/User');
+const { createNotification, templates } = require('./notificationService');
 const Slot = require('../models/Slot');
 const Appointment = require('../models/Appointment');
 const {
@@ -88,6 +89,32 @@ async function bookAppointment(patientId, input) {
       throw new AppError(409, 'SLOT_TAKEN', 'This slot is already booked');
     }
     throw err;
+  }
+
+  // Notify doctor and patient after successful booking
+  try {
+    let patientName = '';
+    const patientDoc = await User.findById(patientId).select('name');
+    if (patientDoc) {
+      patientName = patientDoc.name;
+    }
+
+    await Promise.all([
+      createNotification({
+        recipient: doctor._id,
+        type: 'appointment_requested',
+        message: templates.appointmentRequested(patientName),
+        appointment: appointment._id,
+      }),
+      createNotification({
+        recipient: patientId,
+        type: 'appointment_request_sent',
+        message: templates.appointmentRequestSent(doctor.name),
+        appointment: appointment._id,
+      }),
+    ]);
+  } catch (notifErr) {
+    console.error('Failed to create notification on booking:', notifErr);
   }
 
   return {
