@@ -273,6 +273,17 @@ async function manageAppointment(user, appointmentId, body) {
       await Slot.findByIdAndUpdate(appointment.slot, { isBooked: false });
     }
 
+    try {
+      await createNotification({
+        recipient: appointment.doctor,
+        type: 'appointment_cancelled',
+        message: templates.appointmentCancelled(user.name),
+        appointment: updated._id,
+      });
+    } catch (notifErr) {
+      console.error('Failed to create notification on cancel:', notifErr);
+    }
+
     return {
       appointment: {
         id: updated._id.toString(),
@@ -396,6 +407,17 @@ async function manageAppointment(user, appointmentId, body) {
       await Slot.findByIdAndUpdate(oldSlotId, { isBooked: false });
     }
 
+    try {
+      await createNotification({
+        recipient: appointment.doctor,
+        type: 'appointment_rescheduled',
+        message: templates.appointmentRescheduled(user.name),
+        appointment: updated._id,
+      });
+    } catch (notifErr) {
+      console.error('Failed to create notification on reschedule:', notifErr);
+    }
+
     return {
       appointment: {
         id: updated._id.toString(),
@@ -472,6 +494,17 @@ async function manageAppointment(user, appointmentId, body) {
         throw new AppError(400, 'VALIDATION_ERROR', 'Appointment could not be accepted');
       }
 
+      try {
+        await createNotification({
+          recipient: appointment.patient,
+          type: 'appointment_confirmed',
+          message: templates.appointmentConfirmed(user.name),
+          appointment: updated._id,
+        });
+      } catch (notifErr) {
+        console.error('Failed to create notification on accept:', notifErr);
+      }
+
       return {
         appointment: {
           id: updated._id.toString(),
@@ -519,6 +552,17 @@ async function manageAppointment(user, appointmentId, body) {
     // Free the slot so it becomes open again
     if (appointment.slot) {
       await Slot.findByIdAndUpdate(appointment.slot, { isBooked: false });
+    }
+
+    try {
+      await createNotification({
+        recipient: appointment.patient,
+        type: 'appointment_rejected',
+        message: templates.appointmentRejected(user.name),
+        appointment: updated._id,
+      });
+    } catch (notifErr) {
+      console.error('Failed to create notification on reject:', notifErr);
     }
 
     return {
@@ -587,6 +631,17 @@ async function manageAppointment(user, appointmentId, body) {
 
     if (!updated) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Appointment could not be completed');
+    }
+
+    try {
+      await createNotification({
+        recipient: appointment.patient,
+        type: 'appointment_completed',
+        message: templates.appointmentCompleted(user.name),
+        appointment: updated._id,
+      });
+    } catch (notifErr) {
+      console.error('Failed to create notification on complete:', notifErr);
     }
 
     return {
