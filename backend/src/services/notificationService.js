@@ -80,6 +80,14 @@ async function createNotification({ recipient, type, message, appointment }) {
     status: 'unread',
   });
 
+  // Emit real-time notification to user's socket room if Socket.IO is running
+  try {
+    const { sendNotificationToUser } = require('../sockets');
+    sendNotificationToUser(recipient, serializeNotification(notification));
+  } catch (socketErr) {
+    // Non-blocking: DB save succeeded regardless of socket emission
+  }
+
   return notification;
 }
 
