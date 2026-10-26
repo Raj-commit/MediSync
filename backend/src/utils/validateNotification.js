@@ -18,6 +18,17 @@ function validateNotificationId(id) {
 }
 
 /**
+ * Validates that no unexpected body is passed to endpoints that do not take a body.
+ */
+function validateEmptyBody(body) {
+  if (body !== undefined && body !== null) {
+    if (typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length > 0) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Request body is not allowed for this endpoint');
+    }
+  }
+}
+
+/**
  * Validates query parameters for GET /api/v1/notifications.
  */
 function validateNotificationsQuery(query) {
@@ -76,5 +87,6 @@ function validateNotificationsQuery(query) {
 
 module.exports = {
   validateNotificationId,
+  validateEmptyBody,
   validateNotificationsQuery,
 };

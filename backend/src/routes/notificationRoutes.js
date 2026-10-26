@@ -16,4 +16,11 @@ router.get(
   notificationController.getNotifications
 );
 
+router.patch(
+  '/:id/read',
+  authenticate,
+  requireRole('patient', 'doctor'),
+  notificationController.markAsRead
+);
+
 module.exports = router;

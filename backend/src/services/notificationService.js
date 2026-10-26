@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 const { Notification, NOTIFICATION_TYPES } = require('../models/Notification');
-const { validateNotificationsQuery } = require('../utils/validateNotification');
+const {
+  validateNotificationsQuery,
+  validateNotificationId,
+  validateEmptyBody,
+} = require('../utils/validateNotification');
 const AppError = require('../utils/AppError');
 
 // Template generators: plain text messages with no sensitive PII,
@@ -119,9 +123,40 @@ async function getNotifications(user, queryParams) {
   };
 }
 
+/**
+ * Marks a notification as read.
+ * Checks ownership: if the notification does not exist or belongs to another user,
+ * returns 404 NOT_FOUND. Calling on an already read notification returns 200.
+ */
+async function markAsRead(user, notificationId, body) {
+  if (user.role !== 'patient' && user.role !== 'doctor') {
+    throw new AppError(403, 'FORBIDDEN', 'You do not have permission to do this');
+  }
+
+  validateNotificationId(notificationId);
+  validateEmptyBody(body);
+
+  const recipientId = user._id || user.id;
+
+  const notification = await Notification.findOneAndUpdate(
+    { _id: notificationId, recipient: recipientId },
+    { status: 'read' },
+    { returnDocument: 'after' }
+  );
+
+  if (!notification) {
+    throw new AppError(404, 'NOT_FOUND', 'Notification not found');
+  }
+
+  return {
+    notification: serializeNotification(notification),
+  };
+}
+
 module.exports = {
   createNotification,
   getNotifications,
+  markAsRead,
   serializeNotification,
   templates,
 };
