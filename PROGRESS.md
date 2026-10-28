@@ -2,14 +2,14 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-26  by: Hitanshu
+Last updated: 2026-10-28  by: Riyank
 
 ## Current work
 
-- Branch: `feature/notifications-api`
-- Feature: notifications (API done, backend)
-- Last thing finished: FR-18 (Notifications, UC-13) backend API implementation: Notification model, notification service with safe plain-text templates, appointment booking and lifecycle hooks (request, confirm, decline, cancel, reschedule, complete), GET /api/v1/notifications with filtering, pagination, and unreadCount, PATCH /api/v1/notifications/:id/read (idempotent, anti-enumeration 404), background reminder job (checkAndSendReminders, APPOINTMENT_REMINDER_MINUTES), Socket.IO live delivery (sendNotificationToUser), 29 automated integration tests covering all requirements with 100% pass across all 213 backend tests
-- Next step: Open PR for feature/notifications-api; start feature/notifications-ui (FR-18 frontend)
+- Branch: `feature/notifications-ui`
+- Feature: notifications (UI done, frontend)
+- Last thing finished: FR-18 (Notifications, UC-13) frontend implementation: NotificationsService with shared unreadCount signal and visibility-aware polling with exponential backoff, shared notifications page at /notifications guarded by roleGuard('patient', 'doctor') with filter tabs (All / Unread), pagination, relative time formatting via native Intl API, safe plain-text message interpolation, role-aware appointment links, mark as read action with double-click locking, navbar notification bell with unread badge (99+ for >= 100) and accessible aria-labels, automated lifecycle polling in root App component, and 100% pass across all unit tests
+- Next step: Open PR for feature/notifications-ui; start feature/chat-api (FR-12)
 - Blockers or open questions: none
 
 ## Feature status
@@ -23,8 +23,8 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 3 | profiles | done | done | Hitanshu (API), Alis (UI) | GET & PUT /users/me, GET /doctors with search & pagination. UI at /patient/profile and /doctor/profile with dirty-field updates, full Vitest coverage |
 | 4 | doctor-availability | done | done | Riyank (API), Uday Raj (UI) | API merged in PR #19. UI at /doctor/availability with range generator, booked slot protection, full Vitest coverage |
 | 5 | appointment-booking | done | done | Alis | Merged in PR #20 (API) and PR #22 (UI). UI at /patient/doctors and /patient/doctors/:id with slot selection, conflict reload, in-page confirmation, full Vitest coverage |
-| 6 | appointment-management | done | done | Uday Raj (API), Riyank(UI) | Merged in PR #23 (API). UI at /patient/appointments and /doctor/appointments with cancel, reschedule, accept, reject, complete, full Vitest coverage |
-| 7 | notifications | done | not started | Hitanshu | Full appointment lifecycle notifications, GET & PATCH /read endpoints, reminder job with deduplication, Socket.IO live push, 29 tests |
+| 6 | appointment-management | done | done | Uday Raj (API), Riyank(UI) | Merged in PR #23 (API) and PR #26 (UI). UI at /patient/appointments and /doctor/appointments with cancel, reschedule, accept, reject, complete, full Vitest coverage |
+| 7 | notifications | done | done | Hitanshu (API), Riyank (UI) | API merged. UI at /notifications with filters, pagination, mark as read, appointment links, navbar bell with badge, visibility-aware polling, full Vitest coverage |
 | 8 | chat | not started | not started | | |
 | 9 | video-consultation | not started | not started | | |
 | 10 | medical-records | not started | not started | | |
@@ -58,7 +58,7 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-22 | Backend tests use a separate database from `MONGODB_URI_TEST`. Its name must end with `_test`. Jest runs with `--runInBand` | Tests delete data, so they must never touch the real database. No new dependency |
 | 2026-10-22 | Admin is created with `node scripts/seed-admin.js` from ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD and optional ADMIN_PHONE. Safe to run twice, never changes an existing account | TEAM_GUIDE section 1 says admin is created by a seed script |
 | 2026-10-22 | Refresh tokens: none. Access token only, a 1-day JWT. When it expires the UI logs the user out and they log in again | Fewer moving parts. The UI already ends the session on a 401. Revisit only if time is left in week 4 |
-| 2026-10-22 | Video (WebRTC): public STUN (`stun:stun.l.google.com:19302`) while developing. For the deployed demo, add a free hosted TURN service as a fallback. ICE server details come from backend env variables and reach the UI through the API, never hardcoded in the frontend | STUN works on most home and college networks, TURN covers strict ones, and there is no server to run |
+| 2026-10-22 | Video (WebRTC): public STUN (`stun:stun.l.google.com:19302`) while developing. For the deployed demo, add a free hosted TURN service as a fallback. ICE server details come from backend env variables and reach the UI through the API, never hardcoded in the frontend | STUN works on most home and networks, TURN covers strict ones, and there is no server to run |
 | 2026-10-22 | Deployment: frontend as a Render Static Site, Express and Django as Render free Web Services (Django is public but only answers requests with the right `X-Service-Key`), database on MongoDB Atlas M0. Everything over HTTPS. Free services sleep when idle, so open both /api health URLs a few minutes before a demo. Running locally is the fallback. Deploy a skeleton in week 2 | One platform, free, WebSockets work, and browsers only allow camera and microphone on HTTPS or localhost |
 | 2026-10-22 | Prescription PDFs are stored in MongoDB, not on disk. `pdfUrl` holds the API path `/api/v1/prescriptions/:id/pdf`, and the file is sent only through that endpoint after the access checks | A free host wipes its disk on restart. MongoDB already holds the records, and access control stays in Express |
 | 2026-10-22 | Symptom checker: the rule-based engine is the deliverable. A real LLM call is a stretch goal after the core features, with its key in env and a "not medical advice" notice | Keeps the demo reliable |
@@ -103,6 +103,10 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-26 | Non-blocking notification delivery: notification generation inside appointment booking and lifecycle transitions is wrapped in `try / catch` so failures never abort, rollback, or alter appointment responses | Preserves clinical transaction reliability: booking and appointment updates always succeed even if the notification store or socket is degraded |
 | 2026-10-26 | Reminder job deduplication via `reminderSent`: `Appointment.reminderSent` (default false) is set to true when reminder is sent for an appointment within the window (default `APPOINTMENT_REMINDER_MINUTES=60`); checks only confirmed future appointments | Prevents duplicate reminders across service restarts or scheduled periodic runs |
 | 2026-10-26 | Socket.IO room isolation: authenticated socket connections join private room `user:<userId>`; notifications broadcast directly to recipient room upon creation | Enables instant real-time UI updates without polling or exposing notifications to unauthorized sockets |
+| 2026-10-28 | Shared notifications route (Choice 1): one `/notifications` route protected by `roleGuard('patient', 'doctor')` with title `Notifications \| MediSync` | Patient and doctor notifications share identical data schema, unread badge, filters, pagination, and mark-as-read behavior; avoids duplicated components or routes |
+| 2026-10-28 | Navbar bell interaction (Choice 2): direct navigation link to `/notifications` with unread count badge, hidden at 0 and formatted as `99+` for $\ge 100$; no dropdown or popover preview | Simpler, fully accessible, zero focus-trap bugs, and works cleanly on mobile screens |
+| 2026-10-28 | Visibility-aware polling with exponential backoff (Choice 3): polls unread count every 30s while tab is visible; pauses on `document.visibilityState === 'hidden'` and triggers immediate refresh on `visible`; doubles interval up to 120s on network (status 0) or 5xx server errors; resets on 2xx success; stops on 401/403 or logout | Keeps unread badge fresh without requiring Socket.IO client dependency; saves mobile battery and network while tab is idle; prevents hammered servers during outages |
+| 2026-10-28 | Safe plain-text interpolation: notification messages rendered strictly as plain text (`{{ item.message }}`) with native `Intl.RelativeTimeFormat` for timestamps; never HTML or innerHTML | Prevents XSS vulnerabilities while keeping bundle size minimal without external date libraries |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 

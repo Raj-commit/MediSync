@@ -204,8 +204,9 @@ export class PatientAppointments implements OnInit {
     this.doctorSlots.set([]);
   }
 
-  protected loadDoctorSlots(doctorId: string, currentStartIso?: string): void {
+  protected loadDoctorSlots(doctorId: string, currentStartIso?: string, preserveError = false): void {
     this.rescheduleLoading.set(true);
+    if (!preserveError)
     this.rescheduleError.set(null);
 
     this.appointmentsService.getDoctorAvailability(doctorId).subscribe({
@@ -274,7 +275,7 @@ export class PatientAppointments implements OnInit {
               err.error?.message || 'This slot is already booked. Available slots have been reloaded.',
             );
             this.selectedNewSlot.set(null);
-            this.loadDoctorSlots(doctorId);
+            this.loadDoctorSlots(doctorId, undefined, true);
           } else if (err.status === 0) {
             this.rescheduleError.set('Cannot reach the server. Please try again.');
           } else {

@@ -88,6 +88,13 @@ export const routes: Routes = [
     title: 'Doctor dashboard | MediSync',
   },
   {
+    path: 'notifications',
+    canActivate: [roleGuard('patient', 'doctor')],
+    loadComponent: () =>
+      import('./features/notifications/notifications').then((m) => m.NotificationsPage),
+    title: 'Notifications | MediSync',
+  },
+  {
     path: 'admin',
     canActivate: [roleGuard('admin')],
     loadComponent: () =>

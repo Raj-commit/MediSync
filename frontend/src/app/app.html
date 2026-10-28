@@ -1,4 +1,9 @@
-<app-navbar [isLoggedIn]="auth.isLoggedIn()" (logout)="onLogout()" />
+<app-navbar
+  [isLoggedIn]="auth.isLoggedIn()"
+  [role]="auth.role()"
+  [unreadCount]="notificationsService.unreadCount()"
+  (logout)="onLogout()"
+/>
 <main class="container">
   <router-outlet />
 </main>
