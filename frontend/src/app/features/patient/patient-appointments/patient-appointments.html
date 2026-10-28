@@ -148,10 +148,6 @@
                   </p>
                 </div>
 
-                @if (rescheduleLoading()) {
-                  <p class="loading-state" aria-live="polite">Loading available slots...</p>
-                }
-
                 @if (rescheduleError()) {
                   <div class="error-banner" role="alert">
                     <p class="error">{{ rescheduleError() }}</p>
@@ -163,6 +159,10 @@
                       Retry
                     </button>
                   </div>
+                }
+
+                @if (rescheduleLoading()) {
+                  <p class="loading-state" aria-live="polite">Loading available slots...</p>
                 }
 
                 @if (!rescheduleLoading() && !rescheduleError()) {
