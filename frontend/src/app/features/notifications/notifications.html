@@ -1,0 +1,148 @@
+<main class="container">
+  <div class="page-header">
+    <a [routerLink]="dashboardPath()" class="back-link">&larr; Back to Dashboard</a>
+    <div class="title-row">
+      <h1>Notifications</h1>
+      @if (notificationsService.unreadCount() > 0) {
+        <span class="unread-pill" aria-label="Unread count">
+          {{ notificationsService.unreadCount() }} unread
+        </span>
+      }
+    </div>
+    <p class="subtitle">Stay updated on your appointments and consultation activity.</p>
+  </div>
+
+  <section class="card filter-card">
+    <div class="tabs" role="tablist" aria-label="Notification filters">
+      <button
+        type="button"
+        role="tab"
+        class="tab-button"
+        [class.active]="filter() === ''"
+        [attr.aria-selected]="filter() === ''"
+        (click)="setFilter('')"
+      >
+        All
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab-button"
+        [class.active]="filter() === 'unread'"
+        [attr.aria-selected]="filter() === 'unread'"
+        (click)="setFilter('unread')"
+      >
+        Unread
+        @if (notificationsService.unreadCount() > 0) {
+          <span class="tab-badge">({{ notificationsService.unreadCount() }})</span>
+        }
+      </button>
+    </div>
+  </section>
+
+  @if (loading()) {
+    <div class="card state-box" aria-live="polite">
+      <p>Loading notifications...</p>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="card error-box" role="alert">
+      <p class="error">{{ error() }}</p>
+      <button
+        type="button"
+        class="button button-secondary"
+        (click)="loadNotifications(pagination().page)"
+      >
+        Try again
+      </button>
+    </div>
+  }
+
+  @if (!loading() && !error()) {
+    @if (notifications().length === 0) {
+      <div class="card empty-box">
+        <h2>No notifications found</h2>
+        @if (filter() === 'unread') {
+          <p>You have caught up with all your notifications.</p>
+          <button type="button" class="button button-secondary" (click)="setFilter('')">
+            View all notifications
+          </button>
+        } @else {
+          <p>You have no notifications yet. When updates about appointments arrive, they will appear here.</p>
+        }
+      </div>
+    } @else {
+      <ul class="notifications-list" aria-label="Notifications list">
+        @for (item of notifications(); track item.id) {
+          <li class="card notification-card" [class.unread]="item.status === 'unread'">
+            <div class="notification-header">
+              <span
+                class="badge"
+                [class.badge-unread]="item.status === 'unread'"
+                [class.badge-read]="item.status === 'read'"
+              >
+                {{ item.status === 'unread' ? 'Unread' : 'Read' }}
+              </span>
+              <time [attr.datetime]="item.createdAt" [title]="formatFullDate(item.createdAt)">
+                {{ formatRelativeTime(item.createdAt) }}
+              </time>
+            </div>
+
+            <p class="notification-message">{{ item.message }}</p>
+
+            <div class="notification-actions">
+              @if (item.appointment) {
+                <a [routerLink]="appointmentsPath()" class="button button-link">
+                  View appointment &rarr;
+                </a>
+              }
+              @if (item.status === 'unread') {
+                <button
+                  type="button"
+                  class="button button-secondary mark-read-btn"
+                  [disabled]="isMarkingRead(item.id)"
+                  (click)="markAsRead(item)"
+                >
+                  @if (isMarkingRead(item.id)) {
+                    Marking...
+                  } @else {
+                    Mark as read
+                  }
+                </button>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+
+      @if (pagination().totalPages > 1) {
+        <nav class="pagination-nav" aria-label="Notifications pagination">
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page <= 1 || loading()"
+            (click)="onPageChange(pagination().page - 1)"
+            aria-label="Previous page"
+          >
+            &larr; Previous
+          </button>
+
+          <span class="page-indicator" aria-current="page">
+            Page {{ pagination().page }} of {{ pagination().totalPages }}
+          </span>
+
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page >= pagination().totalPages || loading()"
+            (click)="onPageChange(pagination().page + 1)"
+            aria-label="Next page"
+          >
+            Next &rarr;
+          </button>
+        </nav>
+      }
+    }
+  }
+</main>
