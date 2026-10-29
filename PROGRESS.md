@@ -2,14 +2,14 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-29  by: Riyank
+Last updated: 2026-10-29  by: Alis
 
 ## Current work
 
-- Branch: `feature/medical-records-ui`
-- Feature: medical records (UI done, frontend)
-- Last thing finished: FR-13 (Medical Records, UC-09) frontend implementation: `RecordsService` for medical records data layer; `/patient/records` read-only patient view with newest-first sorting, pagination, loading/empty/error states; Dashboard link on Patient Dashboard; `/doctor/patient-records/:patientId` doctor view with patient summary (name and age), past consultations list, pre-flight ObjectId format validation; "Patient record" button on Doctor Appointment cards restricted strictly to `confirmed` and `completed` appointments; Consultation entry form with `NonNullableFormBuilder`, trimmed validations, live character counters (300 diagnosis / 3,000 notes), immutability notice, accessible confirmation modal dialog (`role="dialog"`, `aria-modal="true"`, ESC/backdrop dismissal), atomic save, success live region announcement, preserving typed text on server errors, plain-text interpolation (XSS defense), memory clearance on destroy, and comprehensive Vitest unit test suites (all 264 unit tests passing)
-- Next step: Open PR for feature/medical-records-ui into main; begin FR-14 / prescriptions or next feature
+- Branch: `feature/prescriptions-api`
+- Feature: prescriptions (API done, backend)
+- Last thing finished: FR-14, FR-15, FR-16 (UC-10, UC-11) backend implementation: Prescription model with unique compound index on appointment; validatePrescription with strict body and query validation; Django PDF client (pdfService) connecting to POST /api/prescriptions/pdf with X-Service-Key, 5s timeout, 2MB size limit, magic header validation, and mapping all failures to safe 502 PDF_SERVICE_UNAVAILABLE; POST /api/v1/prescriptions with doctor-only access, completed appointment status requirement, 404 anti-enumeration, single prescription per appointment (409 PRESCRIPTION_EXISTS), zero data loss on Django failure, and non-blocking patient notification; GET /api/v1/prescriptions with role scoping (patients see own, doctors see issued), newest-first sorting, pagination, and ?appointmentId= filter for doctor UI lookup; GET /api/v1/prescriptions/:id/pdf with streaming raw PDF bytes, safe download headers (Content-Type, Content-Disposition, Cache-Control: no-store, X-Content-Type-Options: nosniff), 404 anti-enumeration, and on-demand PDF generation/caching; and 31 automated Jest/Supertest tests passing in backend/tests/prescriptions.test.js (325/325 total backend tests passing)
+- Next step: Open PR for feature/prescriptions-api into main; start feature/prescriptions-ui
 - Blockers or open questions: none
 
 ## Feature status
@@ -27,8 +27,8 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 7 | notifications | done | done | Hitanshu (API), Riyank (UI) | API merged. UI at /notifications with filters, pagination, mark as read, appointment links, navbar bell with badge, visibility-aware polling, full Vitest coverage |
 | 8 | chat | done | done | Alis (API), Hitman0137 (UI) | FR-12 (UC-08). Shared /appointments/:id/chat route, Socket.IO live delivery, history pagination, cards integration, 180 tests passing |
 | 9 | video-consultation | done | done | Uday Raj (API), Alis (UI) | FR-11 (UC-07) WebRTC signaling over Socket.IO, VideoSession lifecycle, ICE server config. Shared /appointments/:id/video UI with pre-call preview, signaling, auto-reconnect, cards integration, 24 Vitest tests |
-| 10 | medical-records | done | done | Riyank (API, UI) | FR-13 (UC-09). GET /records/me, GET /records/patient/:patientId, POST /records/patient/:patientId/entries with atomic upsert, age derivation, zero PII leak, anti-enumeration, and no-store caching. Separate patient and doctor routes, confirmation dialog, character counters, plain-text XSS defense, full Vitest coverage |
-| 11 | prescriptions | not started | not started | | |
+| 10 | medical-records | done | done | Riyank (API), Uday Raj (UI) | FR-13 (UC-09). GET /records/me, GET /records/patient/:patientId, POST /records/patient/:patientId/entries with atomic upsert, age derivation, zero PII leak, anti-enumeration, and no-store caching. Separate patient and doctor routes, confirmation dialog, character counters, plain-text XSS defense, full Vitest coverage |
+| 11 | prescriptions | done | not started | Alis (API) | FR-14, FR-15, FR-16 (UC-10, UC-11). POST /prescriptions, GET /prescriptions, GET /prescriptions/:id/pdf. Django integration with ReportLab, single prescription 409, 404 anti-enumeration, on-demand PDF recovery, 31 tests passing |
 | 12 | prescription-pdf | done | n/a | Uday Raj | Merged in PR #17. Django endpoint POST /api/prescriptions/pdf with ReportLab, timing-safe X-Service-Key check, escaping, and tests |
 | 13 | symptom-checker | not started | not started | | |
 | 14 | admin-user-management | not started | not started | | |
@@ -142,7 +142,14 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-29 | Medical record pagination (Choice b): Numbered page navigation (`Page X of Y`, Previous, Next) | Directly matches backend response pagination shape and appointment history UX, avoiding offset drift on new entry additions |
 | 2026-10-29 | Permanent entry confirmation (Choice c): Accessible modal dialog (`role="dialog"`, `aria-modal="true"`, ESC key listener, focus trap) summarizing diagnosis and notes with immutability warning | Prevents accidental submission of permanent, non-editable medical records while following existing cancellation/rejection modal patterns |
 | 2026-10-29 | Medical record privacy & XSS defense: Clinical notes and diagnoses rendered as plain text interpolation only (preserving line breaks with `white-space: pre-wrap;`, never `innerHTML`). Zero caching in localStorage/sessionStorage/URL. In-memory record signals cleared immediately on `ngOnDestroy`. No print/export buttons | Strict adherence to NFR-08 and HIPAA-style privacy principles for sensitive medical data |
-
+| 2026-10-29 | Prescription creation lifecycle: allowed strictly when appointment status is `completed` and caller is the owning doctor. Uncompleted, cancelled, or unowned appointments rejected with 400 `VALIDATION_ERROR` or 404 `NOT_FOUND` | Enforces clinical reality that prescriptions are issued only after consultation has taken place |
+| 2026-10-29 | One prescription per appointment & 409 `PRESCRIPTION_EXISTS`: unique index on `{ appointment: 1 }` enforces 0..1 prescription per appointment; duplicate creation attempts rejected with 409 `PRESCRIPTION_EXISTS` | Enforces NFR-09 data integrity and prevents duplicate prescription records |
+| 2026-10-29 | Zero data loss on Django PDF failure: prescription saved in MongoDB before calling Django; if Django is unavailable or times out, prescription is preserved with `pdfStatus: "pending"` and 201 is returned. `GET /prescriptions/:id/pdf` generates and caches PDF on demand | Protects clinical entries from being lost due to ephemeral microservice blips (NFR-03) |
+| 2026-10-29 | PDF storage in Prescription document: raw PDF bytes stored in `pdfData` Buffer with `select: false`. Loaded strictly when serving the PDF via `.select('+pdfData')` | PDFs are small (5-30 KB), well below MongoDB 16 MB limit; avoids multi-collection complexity while keeping listing queries fast |
+| 2026-10-29 | Safe Django PDF integration: Node 22 native `fetch` to internal endpoint `POST /api/prescriptions/pdf` with header `X-Service-Key`, 5s timeout, 2MB size limit, `%PDF-` validation, and mapping all failures to safe 502 `PDF_SERVICE_UNAVAILABLE` | Protects against memory bombs, timing attacks, and trace leaks |
+| 2026-10-29 | Anti-enumeration on prescriptions: `POST /prescriptions`, `GET /prescriptions`, and `GET /prescriptions/:id/pdf` return 404 `NOT_FOUND` if appointment/prescription does not exist OR is not owned by the caller. Admins receive 403 `FORBIDDEN` | Prevents attackers from scanning or guessing valid appointment or prescription IDs |
+| 2026-10-29 | Doctor UI lookup via `?appointmentId=`: `GET /api/v1/prescriptions?appointmentId=<id>` returns `total: 1` if a prescription exists and `total: 0` if none exists | Allows doctor UI to dynamically check whether an appointment already has a prescription |
+| 2026-10-29 | Non-blocking prescription notification: new notification type `prescription_created` with safe template `Dr. ${doctorName} has issued a digital prescription for your appointment.` without medicine or clinical data. Notification failure never rolls back prescription | Guarantees prescription creation reliability while keeping patient alerted |
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
 - Added the optional env variable `ADMIN_PHONE` (default placeholder +910000000000), because the User model requires a phone for every user, including the admin.
@@ -154,12 +161,12 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 - Added `chatSeq` (Number, default 0) to the `Appointment` model to maintain an atomic counter for consultation chat message sequence numbers.
 - Added `endedReason` (String enum: `['call_ended', 'disconnected']`) and `isExplicitlyEnded` (Boolean, default false) to the `VideoSession` model to differentiate temporary disconnects from explicit call endings and prevent rejoining terminated calls.
 - Added env variables `STUN_SERVERS` (default `stun:stun.l.google.com:19302`), `TURN_SERVERS`, `TURN_USERNAME`, and `TURN_CREDENTIAL` for WebRTC ICE server configuration.
-
+- Added `patient` and `doctor` (ObjectId references to `User`) to the `Prescription` model for direct, indexed role scoping and query performance, and `pdfData` (Buffer, select: false) for MongoDB binary storage.
 ## Known issues
 
 - A logged-in user can still open `/login` and `/register` by typing the address. They are not redirected to their dashboard yet.
 - Backend tests pass `runtimeAdapters: { os: require('os') }` in tests/helpers/db.js because of the MongoDB driver bug NODE-7832 (driver 7.6 and later, under Jest). Remove it once a fixed driver is released.
-
+- AGENTS.md section 6 lists the internal Django endpoint as `POST /prescriptions/pdf`, whereas the Django application mounts it under `POST /api/prescriptions/pdf` (defined in `ai-service/config/urls.py`). Backend uses the real mounted path `/api/prescriptions/pdf`.
 ## How to hand over to another AI
 
 Start a new chat or tool and paste the contents of these three files in this order: `AGENTS.md`, `PROJECT_CONTEXT.md`, `PROGRESS.md`. If the tool can read the repo, point it at the repo root instead. Then send:
