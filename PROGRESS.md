@@ -2,14 +2,14 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-29  by: Alis
+Last updated: 2026-10-29  by: Hitman0137
 
 ## Current work
 
-- Branch: `feature/chat-api`
-- Feature: chat (API done, backend)
-- Last thing finished: FR-12 (Chat, UC-08) backend implementation: ChatMessage model with compound unique index { appointment: 1, seq: 1 }, gapless sequential chatSeq atomic assignment via Appointment.findOneAndUpdate, GET /api/v1/appointments/:id/messages with cursor-based pagination (beforeSeq, afterSeq, limit) and strict anti-enumeration access guards (strangers/requested/cancelled 404, admins 403), Socket.IO consultation chat handlers (join_chat, send_message, new_message broadcast) with room isolation appointment:<id>, in-memory flooding protection (max 5 messages per 3s), live user active re-verification (ACCOUNT_DISABLED with forced disconnect), consultation lifecycle guards (CHAT_CLOSED for completed appointments), and 27 automated integration tests with socket.io-client (240 tests passing across all 12 test suites)
-- Next step: Open PR for feature/chat-api; start feature/chat-ui (FR-12)
+- Branch: `feature/chat-ui`
+- Feature: chat (UI done, frontend)
+- Last thing finished: FR-12 (Chat, UC-08) frontend implementation: `/appointments/:id/chat` route guarded by roleGuard('patient', 'doctor'), Socket.IO live messaging (join_chat, send_message, new_message broadcast) with socket.io-client, read-only consultation history for completed appointments, connection status indicator pill, sequence deduplication, reconnect catch-up (afterSeq query), direct Chat button on appointment cards for confirmed/completed appointments, and 180 passing tests across 28 test suites in frontend
+- Next step: Open PR for feature/chat-ui into main
 - Blockers or open questions: none
 
 ## Feature status
@@ -25,7 +25,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 5 | appointment-booking | done | done | Alis | Merged in PR #20 (API) and PR #22 (UI). UI at /patient/doctors and /patient/doctors/:id with slot selection, conflict reload, in-page confirmation, full Vitest coverage |
 | 6 | appointment-management | done | done | Uday Raj (API), Riyank(UI) | Merged in PR #23 (API) and PR #26 (UI). UI at /patient/appointments and /doctor/appointments with cancel, reschedule, accept, reject, complete, full Vitest coverage |
 | 7 | notifications | done | done | Hitanshu (API), Riyank (UI) | API merged. UI at /notifications with filters, pagination, mark as read, appointment links, navbar bell with badge, visibility-aware polling, full Vitest coverage |
-| 8 | chat | done | not started | Alis (API) | FR-12 (UC-08). ChatMessage model, atomic chatSeq, GET /appointments/:id/messages, Socket.IO join_chat & send_message, in-memory flood limit, live active guards, 27 integration tests |
+| 8 | chat | done | done | Alis (API), Hitman0137 (UI) | FR-12 (UC-08). Shared /appointments/:id/chat route, Socket.IO live delivery, history pagination, cards integration, 180 tests passing |
 | 9 | video-consultation | not started | not started | | |
 | 10 | medical-records | not started | not started | | |
 | 11 | prescriptions | not started | not started | | |
@@ -113,6 +113,11 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-29 | Consultation message privacy & limits: Plain-text string only, trimmed, max 1,000 characters; non-string or empty content rejected with 400 `VALIDATION_ERROR`. Message responses never contain email, phone, or passwordHash; sender exposed strictly as `{ id, name }` | Prevents XSS, payload bloat, and personal data leakage |
 | 2026-10-29 | In-memory flooding protection: Max 5 messages per 3-second window per user; exceeding bursts rejected with 429 `RATE_LIMITED` and message `"Too many messages. Please slow down."`. Expired tracking timestamps pruned periodically | Prevents socket spamming and DoS without external Redis dependency |
 | 2026-10-29 | Live active re-verification & forced disconnection: User status re-queried from database on every `join_chat` and `send_message`. If disabled (`!user.isActive`), user receives 403 `ACCOUNT_DISABLED` error acknowledgement and socket is immediately disconnected (`socket.disconnect(true)`) | Closes session hijacking / zombie socket window if admin disables an account while a WebSocket connection remains active |
+| 2026-10-29 | Shared chat route (Choice a1): single `/appointments/:id/chat` route guarded by `roleGuard('patient', 'doctor')`, loading `ChatPage` | Reuses the exact same component and UI for both patient and doctor roles without code duplication |
+| 2026-10-29 | Scoped socket connection (Choice b1): Socket.IO client connects on `ChatPage` `ngOnInit` and cleanly disconnects on `ngOnDestroy` using current JWT from `AuthService` | Avoids unnecessary persistent background WebSocket connections across unauthenticated or non-chat routes |
+| 2026-10-29 | Server-confirmed message sending (Choice c1): composer locks input and sends `send_message`; message is displayed upon server acknowledgement or `new_message` broadcast; on error, textarea text is preserved and server error message is displayed as written | Prevents optimistic ghost messages, race conditions, and accidental data loss during network hiccups |
+| 2026-10-29 | Reconnect catch-up: on socket reconnect after a disconnect, automatically joins the room again and queries `GET /api/v1/appointments/:id/messages?afterSeq=<maxSeq>` | Guarantees no missed messages during temporary socket drops without fetching full history or creating duplicates |
+| 2026-10-29 | Socket dependency: `socket.io-client@^4.8.1` matching backend Socket.IO v4 server version | Required for WebSocket transport and bi-directional real-time chat delivery |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 

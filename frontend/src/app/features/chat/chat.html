@@ -1,0 +1,184 @@
+<div class="container chat-page-container">
+  <div class="chat-page-header">
+    <a [routerLink]="backPath()" class="back-link">
+      &larr; Back to appointments
+    </a>
+    <div class="title-row">
+      <h1>Consultation Chat</h1>
+      <span
+        class="connection-pill"
+        [class.connected]="connectionStatus() === 'connected'"
+        [class.connecting]="connectionStatus() === 'connecting'"
+        [class.reconnecting]="connectionStatus() === 'reconnecting'"
+        [class.disconnected]="connectionStatus() === 'disconnected'"
+        [attr.aria-label]="'Connection status: ' + statusLabel()"
+      >
+        <span class="status-dot" aria-hidden="true"></span>
+        {{ statusLabel() }}
+      </span>
+    </div>
+    <p class="subtitle">
+      Secure, private message channel for this consultation.
+    </p>
+  </div>
+
+  @if (loadingHistory()) {
+    <div class="card state-box" aria-live="polite">
+      <p>Loading consultation messages...</p>
+    </div>
+  }
+
+  @if (historyError()) {
+    <div class="card error-box" role="alert">
+      <p class="error">{{ historyError() }}</p>
+      <div class="error-actions">
+        <button
+          type="button"
+          class="button button-secondary"
+          (click)="loadInitialHistory()"
+        >
+          Try again
+        </button>
+        <a [routerLink]="backPath()" class="button button-outline">
+          Back to appointments
+        </a>
+      </div>
+    </div>
+  }
+
+  @if (!loadingHistory() && !historyError()) {
+    <div class="chat-card">
+      <div class="chat-card-header">
+        <div class="chat-card-info">
+          <h2>Messages</h2>
+          <span class="active-room-indicator">Consultation room</span>
+        </div>
+      </div>
+
+      @if (hasMore()) {
+        <div class="load-earlier-bar">
+          <button
+            type="button"
+            class="button button-secondary button-sm"
+            [disabled]="loadingEarlier()"
+            (click)="loadEarlierMessages()"
+          >
+            {{ loadingEarlier() ? 'Loading earlier messages...' : 'Load earlier messages' }}
+          </button>
+        </div>
+      }
+
+      <div
+        id="chat-messages-container"
+        class="messages-scroll-area"
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions"
+        aria-label="Consultation messages"
+        (scroll)="onScroll($event)"
+      >
+        @if (messages().length === 0) {
+          <div class="empty-chat-state">
+            <p>No messages yet in this consultation. Start the conversation below.</p>
+          </div>
+        } @else {
+          <ul class="message-list" aria-label="Messages list">
+            @for (msg of messages(); track msg.seq) {
+              <li
+                class="message-row"
+                [class.own-row]="isOwnMessage(msg)"
+                [class.other-row]="!isOwnMessage(msg)"
+              >
+                <div
+                  class="message-bubble"
+                  [class.own-bubble]="isOwnMessage(msg)"
+                  [class.other-bubble]="!isOwnMessage(msg)"
+                >
+                  <div class="message-meta">
+                    <span class="sender-name">
+                      {{ isOwnMessage(msg) ? 'You' : msg.sender.name }}
+                      @if (isOwnMessage(msg)) {
+                        <span class="own-indicator" aria-hidden="true">(You)</span>
+                      }
+                    </span>
+                    <span class="message-time">
+                      {{ formatTime(msg.timestamp) }}
+                    </span>
+                  </div>
+                  <div class="message-content">{{ msg.content }}</div>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+
+        @if (unreadBelow()) {
+          <button
+            type="button"
+            class="jump-to-bottom-button"
+            (click)="jumpToBottom()"
+            aria-label="Jump to newest messages"
+          >
+            &darr; New messages
+          </button>
+        }
+      </div>
+
+      <footer class="chat-composer">
+        @if (sendError()) {
+          <div class="composer-error-banner" role="alert">
+            <span class="error-text">{{ sendError() }}</span>
+            <button
+              type="button"
+              class="dismiss-error-button"
+              (click)="sendError.set(null)"
+              aria-label="Dismiss error"
+            >
+              &times;
+            </button>
+          </div>
+        }
+
+        @if (chatClosed()) {
+          <div class="chat-closed-banner" role="status">
+            <p>This consultation has ended and the conversation is now read-only.</p>
+          </div>
+        } @else {
+          <form (ngSubmit)="sendMessage()" class="composer-form">
+            <div class="composer-input-wrapper">
+              <label for="chat-message-input" class="visually-hidden">
+                Type your consultation message
+              </label>
+              <textarea
+                id="chat-message-input"
+                class="composer-textarea"
+                rows="2"
+                placeholder="Type a message... (Press Enter to send, Shift+Enter for new line)"
+                maxlength="1000"
+                [value]="text()"
+                (input)="onTextInput($event)"
+                (keydown)="onKeyDown($event)"
+                [disabled]="sending()"
+              ></textarea>
+              <div class="composer-counter" aria-live="polite">
+                <span [class.counter-warn]="text().length > 900">{{ text().length }}</span> / 1000
+              </div>
+            </div>
+            <button
+              type="submit"
+              class="button button-send"
+              [disabled]="sending() || !text().trim()"
+              aria-label="Send message"
+            >
+              @if (sending()) {
+                <span>Sending...</span>
+              } @else {
+                <span>Send</span>
+              }
+            </button>
+          </form>
+        }
+      </footer>
+    </div>
+  }
+</div>

@@ -95,6 +95,12 @@ export const routes: Routes = [
     title: 'Notifications | MediSync',
   },
   {
+    path: 'appointments/:id/chat',
+    canActivate: [roleGuard('patient', 'doctor')],
+    loadComponent: () => import('./features/chat/chat').then((m) => m.ChatPage),
+    title: 'Consultation chat | MediSync',
+  },
+  {
     path: 'admin',
     canActivate: [roleGuard('admin')],
     loadComponent: () =>

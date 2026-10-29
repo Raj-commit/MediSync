@@ -311,4 +311,26 @@ describe('PatientAppointments Component', () => {
     // Error banner displayed and availability reloaded automatically
     expect(page.textContent).toContain('This slot is already booked');
   });
+
+  it('renders a Chat button only for confirmed or completed appointments', async () => {
+    fixture.detectChanges();
+
+    const req = http.expectOne(
+      (r) => r.url === APPOINTMENTS_URL && r.params.get('when') === 'upcoming',
+    );
+    req.flush(mockAppointmentsResponse);
+
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // apt-1 is confirmed -> has chat button
+    // apt-2 is requested -> no chat button
+    const cards = page.querySelectorAll('.appointment-card');
+    const apt1ChatBtn = cards[0].querySelector('.button-chat');
+    const apt2ChatBtn = cards[1].querySelector('.button-chat');
+
+    expect(apt1ChatBtn).not.toBeNull();
+    expect(apt1ChatBtn?.getAttribute('href')).toBe('/appointments/apt-1/chat');
+    expect(apt2ChatBtn).toBeNull();
+  });
 });

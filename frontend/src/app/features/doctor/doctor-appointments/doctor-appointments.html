@@ -122,8 +122,18 @@
                 <span class="time-hours">{{ formatTimeRange(apt.dateTime, apt.endTime) }}</span>
               </div>
 
-              @if (canAccept(apt) || canReject(apt) || canComplete(apt)) {
+              @if (canAccept(apt) || canReject(apt) || canComplete(apt) || canChat(apt)) {
                 <div class="appointment-actions">
+                  @if (canChat(apt)) {
+                    <a
+                      [routerLink]="['/appointments', apt.id, 'chat']"
+                      class="button button-sm button-chat"
+                      aria-label="Open consultation chat"
+                    >
+                      Chat
+                    </a>
+                  }
+
                   @if (canAccept(apt)) {
                     <button
                       type="button"
