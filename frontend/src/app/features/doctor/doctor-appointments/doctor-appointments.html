@@ -95,7 +95,9 @@
     } @else {
       <div class="results-header">
         <p class="results-count">
-          Showing {{ appointments().length }} of {{ pagination().total }} appointment{{ pagination().total === 1 ? '' : 's' }}
+          Showing {{ appointments().length }} of {{ pagination().total }} appointment{{
+            pagination().total === 1 ? '' : 's'
+          }}
         </p>
       </div>
 
@@ -122,8 +124,23 @@
                 <span class="time-hours">{{ formatTimeRange(apt.dateTime, apt.endTime) }}</span>
               </div>
 
-              @if (canAccept(apt) || canReject(apt) || canComplete(apt) || canChat(apt)) {
+              @if (
+                canAccept(apt) ||
+                canReject(apt) ||
+                canComplete(apt) ||
+                canChat(apt) ||
+                canJoinVideo(apt)
+              ) {
                 <div class="appointment-actions">
+                  @if (canJoinVideo(apt)) {
+                    <a
+                      [routerLink]="['/appointments', apt.id, 'video']"
+                      class="button button-sm button-video"
+                      aria-label="Join video consultation"
+                    >
+                      Join video
+                    </a>
+                  }
                   @if (canChat(apt)) {
                     <a
                       [routerLink]="['/appointments', apt.id, 'chat']"
@@ -230,9 +247,13 @@
         <p>
           Are you sure you want to reject the appointment request from
           <strong>{{ target.patient?.name }}</strong> on
-          <strong>{{ formatDate(target.dateTime) }}</strong> ({{ formatTimeRange(target.dateTime, target.endTime) }})?
+          <strong>{{ formatDate(target.dateTime) }}</strong> ({{
+            formatTimeRange(target.dateTime, target.endTime)
+          }})?
         </p>
-        <p class="modal-hint">The slot will be released back into your open schedule for other patients.</p>
+        <p class="modal-hint">
+          The slot will be released back into your open schedule for other patients.
+        </p>
 
         @if (rejectError()) {
           <div class="error-banner" role="alert">

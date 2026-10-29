@@ -97,7 +97,9 @@ describe('PatientAppointments Component', () => {
     fixture.detectChanges();
 
     // Initial load
-    const req1 = http.expectOne((r) => r.url === APPOINTMENTS_URL && r.params.get('when') === 'upcoming');
+    const req1 = http.expectOne(
+      (r) => r.url === APPOINTMENTS_URL && r.params.get('when') === 'upcoming',
+    );
     req1.flush(mockAppointmentsResponse);
 
     await fixture.whenStable();
@@ -108,7 +110,9 @@ describe('PatientAppointments Component', () => {
     pastTab.click();
     fixture.detectChanges();
 
-    const req2 = http.expectOne((r) => r.url === APPOINTMENTS_URL && r.params.get('when') === 'past');
+    const req2 = http.expectOne(
+      (r) => r.url === APPOINTMENTS_URL && r.params.get('when') === 'past',
+    );
     expect(req2.request.method).toBe('GET');
     req2.flush({
       appointments: [
@@ -172,14 +176,19 @@ describe('PatientAppointments Component', () => {
     fixture.detectChanges();
 
     expect(page.textContent).toContain('No appointments found');
-    expect(page.querySelector('.empty-actions a')?.getAttribute('routerLink')).toBe('/patient/doctors');
+    expect(page.querySelector('.empty-actions a')?.getAttribute('routerLink')).toBe(
+      '/patient/doctors',
+    );
   });
 
   it('displays error box when API fails and retries on click', async () => {
     fixture.detectChanges();
 
     const req1 = http.expectOne((r) => r.url === APPOINTMENTS_URL);
-    req1.flush({ message: 'Database connection failed' }, { status: 500, statusText: 'Server Error' });
+    req1.flush(
+      { message: 'Database connection failed' },
+      { status: 500, statusText: 'Server Error' },
+    );
 
     await fixture.whenStable();
     fixture.detectChanges();
@@ -254,7 +263,9 @@ describe('PatientAppointments Component', () => {
     fixture.detectChanges();
 
     // Click Reschedule on first card
-    const rescheduleToggle = page.querySelector<HTMLButtonElement>('.appointment-actions .button-secondary')!;
+    const rescheduleToggle = page.querySelector<HTMLButtonElement>(
+      '.appointment-actions .button-secondary',
+    )!;
     rescheduleToggle.click();
     fixture.detectChanges();
 
@@ -286,7 +297,9 @@ describe('PatientAppointments Component', () => {
     fixture.detectChanges();
 
     // Click Confirm reschedule
-    const confirmRescheduleBtn = page.querySelector<HTMLButtonElement>('.reschedule-actions .button')!;
+    const confirmRescheduleBtn = page.querySelector<HTMLButtonElement>(
+      '.reschedule-actions .button',
+    )!;
     confirmRescheduleBtn.click();
     fixture.detectChanges();
 
@@ -332,5 +345,67 @@ describe('PatientAppointments Component', () => {
     expect(apt1ChatBtn).not.toBeNull();
     expect(apt1ChatBtn?.getAttribute('href')).toBe('/appointments/apt-1/chat');
     expect(apt2ChatBtn).toBeNull();
+  });
+  it('renders a Join video button only for confirmed appointments within the call window', async () => {
+    const now = Date.now();
+    const activeStart = new Date(now + 2 * 60 * 1000).toISOString();
+    const activeEnd = new Date(now + 32 * 60 * 1000).toISOString();
+    const farFutureStart = new Date(now + 48 * 3600 * 1000).toISOString();
+    const farFutureEnd = new Date(now + 48.5 * 3600 * 1000).toISOString();
+
+    const customResponse = {
+      appointments: [
+        {
+          id: 'apt-active',
+          doctor: { id: 'doc-1', name: 'Dr. Active' },
+          dateTime: activeStart,
+          endTime: activeEnd,
+          status: 'confirmed',
+        },
+        {
+          id: 'apt-requested',
+          doctor: { id: 'doc-2', name: 'Dr. Requested' },
+          dateTime: activeStart,
+          endTime: activeEnd,
+          status: 'requested',
+        },
+        {
+          id: 'apt-far',
+          doctor: { id: 'doc-3', name: 'Dr. Far' },
+          dateTime: farFutureStart,
+          endTime: farFutureEnd,
+          status: 'confirmed',
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 3,
+        totalPages: 1,
+      },
+    };
+
+    fixture.detectChanges();
+
+    const req = http.expectOne(
+      (r) => r.url === APPOINTMENTS_URL && r.params.get('when') === 'upcoming',
+    );
+    req.flush(customResponse);
+
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const cards = page.querySelectorAll('.appointment-card');
+    expect(cards).toHaveLength(3);
+
+    const activeVideoBtn = cards[0].querySelector('.button-video');
+    const requestedVideoBtn = cards[1].querySelector('.button-video');
+    const farVideoBtn = cards[2].querySelector('.button-video');
+
+    expect(activeVideoBtn).not.toBeNull();
+    expect(activeVideoBtn?.getAttribute('href')).toBe('/appointments/apt-active/video');
+    expect(activeVideoBtn?.textContent?.trim()).toBe('Join video');
+    expect(requestedVideoBtn).toBeNull();
+    expect(farVideoBtn).toBeNull();
   });
 });

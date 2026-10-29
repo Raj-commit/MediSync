@@ -28,9 +28,7 @@
       </h1>
       <p class="error-message">{{ statusError() }}</p>
       <div class="action-row">
-        <a [routerLink]="appointmentsPath()" class="button">
-          Back to appointments
-        </a>
+        <a [routerLink]="appointmentsPath()" class="button"> Back to appointments </a>
       </div>
     </div>
   }
@@ -45,8 +43,9 @@
 
       <div class="appointment-details">
         <p>
-          <strong>With:</strong> {{ statusData()!.appointment.otherParty.name }}
-          ({{ statusData()!.appointment.otherParty.role }})
+          <strong>With:</strong> {{ statusData()!.appointment.otherParty.name }} ({{
+            statusData()!.appointment.otherParty.role
+          }})
         </p>
         <p>
           <strong>Scheduled Time:</strong>
@@ -55,9 +54,7 @@
       </div>
 
       <div class="action-row">
-        <a [routerLink]="appointmentsPath()" class="button">
-          Back to appointments
-        </a>
+        <a [routerLink]="appointmentsPath()" class="button"> Back to appointments </a>
       </div>
     </div>
   }
@@ -71,9 +68,7 @@
         Please open MediSync using <code>http://localhost:4200</code> or over HTTPS.
       </p>
       <div class="action-row">
-        <a [routerLink]="appointmentsPath()" class="button">
-          Back to appointments
-        </a>
+        <a [routerLink]="appointmentsPath()" class="button"> Back to appointments </a>
       </div>
     </div>
   }
@@ -83,13 +78,11 @@
     <div class="card status-card text-center" role="alert">
       <h1 class="error-title">Browser Unsupported</h1>
       <p class="error-message">
-        Your browser does not support WebRTC camera and microphone access.
-        Please use an up-to-date version of Google Chrome, Microsoft Edge, Mozilla Firefox, or Apple Safari.
+        Your browser does not support WebRTC camera and microphone access. Please use an up-to-date
+        version of Google Chrome, Microsoft Edge, Mozilla Firefox, or Apple Safari.
       </p>
       <div class="action-row">
-        <a [routerLink]="appointmentsPath()" class="button">
-          Back to appointments
-        </a>
+        <a [routerLink]="appointmentsPath()" class="button"> Back to appointments </a>
       </div>
     </div>
   }
@@ -100,9 +93,7 @@
       <h1 class="error-title">Camera or Microphone Problem</h1>
       <p class="error-message">{{ deviceError() }}</p>
       <div class="action-row">
-        <button type="button" class="button" (click)="initializeMediaDevices()">
-          Try again
-        </button>
+        <button type="button" class="button" (click)="initializeMediaDevices()">Try again</button>
         <a [routerLink]="appointmentsPath()" class="button button-outline">
           Back to appointments
         </a>
@@ -151,9 +142,7 @@
 
         <!-- Mic Muted Indicator Badge on Preview -->
         @if (isAudioMuted()) {
-          <span class="preview-badge mute-badge" role="status">
-            Microphone muted
-          </span>
+          <span class="preview-badge mute-badge" role="status"> Microphone muted </span>
         }
       </div>
 
@@ -167,7 +156,9 @@
           [disabled]="requestingDevices() || !localStream()"
           (click)="toggleAudio()"
         >
-          <span class="control-label">{{ isAudioMuted() ? 'Unmute microphone' : 'Mute microphone' }}</span>
+          <span class="control-label">{{
+            isAudioMuted() ? 'Unmute microphone' : 'Mute microphone'
+          }}</span>
         </button>
 
         <button
@@ -178,7 +169,9 @@
           [disabled]="requestingDevices() || !localStream()"
           (click)="toggleVideo()"
         >
-          <span class="control-label">{{ isVideoOff() ? 'Turn camera on' : 'Turn camera off' }}</span>
+          <span class="control-label">{{
+            isVideoOff() ? 'Turn camera on' : 'Turn camera off'
+          }}</span>
         </button>
       </div>
 
@@ -192,9 +185,7 @@
         >
           Join call
         </button>
-        <a [routerLink]="appointmentsPath()" class="button button-outline">
-          Cancel
-        </a>
+        <a [routerLink]="appointmentsPath()" class="button button-outline"> Cancel </a>
       </div>
     </div>
   }
@@ -216,7 +207,9 @@
   @else if (callState() === 'failed') {
     <div class="card status-card text-center" role="alert">
       <h1 class="error-title">Connection Problem</h1>
-      <p class="error-message">{{ callErrorMessage() || 'Failed to connect to the video call.' }}</p>
+      <p class="error-message">
+        {{ callErrorMessage() || 'Failed to connect to the video call.' }}
+      </p>
       <div class="action-row">
         <button type="button" class="button button-primary" (click)="joinCall()">
           Try rejoining
@@ -235,7 +228,9 @@
       <header class="call-header">
         <div class="call-participant-info">
           @if (statusData()?.appointment; as apt) {
-            <span class="call-title">Consultation with <strong>{{ apt.otherParty.name }}</strong></span>
+            <span class="call-title"
+              >Consultation with <strong>{{ apt.otherParty.name }}</strong></span
+            >
           }
         </div>
 
@@ -332,15 +327,13 @@
           [attr.aria-pressed]="isVideoOff()"
           (click)="toggleVideo()"
         >
-          <span class="button-label">{{ isVideoOff() ? 'Turn camera on' : 'Turn camera off' }}</span>
+          <span class="button-label">{{
+            isVideoOff() ? 'Turn camera on' : 'Turn camera off'
+          }}</span>
         </button>
 
         <!-- Leave Call -->
-        <button
-          type="button"
-          class="toolbar-button button-leave"
-          (click)="leaveCall()"
-        >
+        <button type="button" class="toolbar-button button-leave" (click)="leaveCall()">
           <span class="button-label">Leave call</span>
         </button>
       </footer>

@@ -3,7 +3,9 @@ import { CommonModule } from '@angular/common';
 import {
   Component,
   computed,
+  effect,
   ElementRef,
+  HostListener,
   inject,
   OnDestroy,
   OnInit,
@@ -124,6 +126,26 @@ export class VideoPage implements OnInit, OnDestroy {
   private queuedCandidates: CandidateData[] = [];
   private subscriptions: Subscription[] = [];
   private iceServers: RTCIceServerConfig[] = [{ urls: 'stun:stun.l.google.com:19302' }];
+  private wasDisconnected = false;
+
+  constructor() {
+    // Monitor socket connection status changes for auto-reconnection (Choice c)
+    effect(() => {
+      const status = this.socketService.status();
+      if (!this.hasJoinedCall() || this.callState() === 'ended') {
+        return;
+      }
+
+      if (status === 'reconnecting' || status === 'disconnected') {
+        this.wasDisconnected = true;
+        this.callState.set('reconnecting');
+        this.announce('Connection lost. Reconnecting to consultation...');
+      } else if (status === 'connected' && this.wasDisconnected) {
+        this.wasDisconnected = false;
+        this.handleReconnect();
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.checkVideoEligibility();
@@ -131,8 +153,14 @@ export class VideoPage implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.cleanupMedia();
-    this.cleanupPeerConnection();
+    this.cleanupPeerConnection(true);
     this.cleanupSocket();
+  }
+
+  @HostListener('window:beforeunload')
+  onBeforeUnload(): void {
+    this.cleanupMedia();
+    this.cleanupPeerConnection(true);
   }
 
   /**
@@ -277,10 +305,9 @@ export class VideoPage implements OnInit, OnDestroy {
       this.registerSocketListeners();
 
       // Emit join_video to backend room video:<appointmentId>
-      const ack = await this.socketService.emitWithAck<JoinVideoAck>(
-        'join_video',
-        { appointmentId: this.appointmentId },
-      );
+      const ack = await this.socketService.emitWithAck<JoinVideoAck>('join_video', {
+        appointmentId: this.appointmentId,
+      });
 
       if (!ack.success) {
         this.callState.set('failed');
@@ -296,7 +323,8 @@ export class VideoPage implements OnInit, OnDestroy {
       if (ack.isWaiting) {
         // First participant in the room: wait for the doctor / patient to arrive
         this.callState.set('waiting');
-        const otherPartyName = this.statusData()?.appointment.otherParty.name || 'the other participant';
+        const otherPartyName =
+          this.statusData()?.appointment.otherParty.name || 'the other participant';
         this.announce(`Waiting for ${otherPartyName} to join.`);
       } else if (ack.isInitiator) {
         // Second participant arrived: designated initiator begins WebRTC signaling
@@ -304,10 +332,49 @@ export class VideoPage implements OnInit, OnDestroy {
         await this.startInitiatorCall();
       }
     } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message || 'Cannot connect to consultation server.';
+      const msg =
+        (err as { message?: string })?.message || 'Cannot connect to consultation server.';
       this.callState.set('failed');
       this.callErrorMessage.set(msg);
       this.announce(msg);
+    }
+  }
+
+  /**
+   * Handles automatic room re-entry following a socket reconnection.
+   */
+  private async handleReconnect(): Promise<void> {
+    if (!this.hasJoinedCall() || this.callState() === 'ended') {
+      return;
+    }
+
+    try {
+      this.announce('Reconnected to server. Rejoining consultation room...');
+      const ack = await this.socketService.emitWithAck<JoinVideoAck>('join_video', {
+        appointmentId: this.appointmentId,
+      });
+
+      if (!ack.success) {
+        this.callState.set('failed');
+        this.callErrorMessage.set(ack.message || 'Failed to rejoin consultation.');
+        return;
+      }
+
+      if (ack.iceServers && ack.iceServers.length > 0) {
+        this.iceServers = ack.iceServers;
+      }
+
+      if (ack.isWaiting) {
+        this.callState.set('waiting');
+        this.cleanupPeerConnection(false);
+      } else if (ack.isInitiator) {
+        this.callState.set('connecting');
+        await this.startInitiatorCall();
+      }
+    } catch (err: unknown) {
+      this.callState.set('failed');
+      const msg = (err as { message?: string })?.message || 'Failed to rejoin consultation.';
+      this.callErrorMessage.set(msg);
     }
   }
 
@@ -380,7 +447,7 @@ export class VideoPage implements OnInit, OnDestroy {
         next: (event) => {
           if (event.appointmentId === this.appointmentId) {
             this.callState.set('ended');
-            this.cleanupPeerConnection();
+            this.cleanupPeerConnection(true);
             this.cleanupMedia();
             this.announce(event.message || 'The consultation has ended.');
           }
@@ -393,7 +460,7 @@ export class VideoPage implements OnInit, OnDestroy {
    * Creates RTCPeerConnection and attaches local audio/video tracks.
    */
   private createPeerConnection(): RTCPeerConnection {
-    this.cleanupPeerConnection();
+    this.cleanupPeerConnection(false);
 
     const pc = this.mediaDevices.createPeerConnection({
       iceServers: this.iceServers,
@@ -427,15 +494,17 @@ export class VideoPage implements OnInit, OnDestroy {
     // Handle local ICE candidate generation
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        this.socketService.emitWithAck('relay_candidate', {
-          appointmentId: this.appointmentId,
-          candidate: {
-            candidate: event.candidate.candidate,
-            sdpMid: event.candidate.sdpMid,
-            sdpMLineIndex: event.candidate.sdpMLineIndex,
-            usernameFragment: event.candidate.usernameFragment,
-          },
-        }).catch(() => {});
+        (
+          this.socketService.emitWithAck('relay_candidate', {
+            appointmentId: this.appointmentId,
+            candidate: {
+              candidate: event.candidate.candidate,
+              sdpMid: event.candidate.sdpMid,
+              sdpMLineIndex: event.candidate.sdpMLineIndex,
+              usernameFragment: event.candidate.usernameFragment,
+            },
+          }) || Promise.resolve()
+        ).catch(() => {});
       }
     };
 
@@ -574,14 +643,16 @@ export class VideoPage implements OnInit, OnDestroy {
   async leaveCall(): Promise<void> {
     try {
       if (this.socketService.isConnected()) {
-        await this.socketService.emitWithAck('leave_video', {
-          appointmentId: this.appointmentId,
-          isExplicit: true,
-        }).catch(() => {});
+        await (
+          this.socketService.emitWithAck('leave_video', {
+            appointmentId: this.appointmentId,
+            isExplicit: true,
+          }) || Promise.resolve()
+        ).catch(() => {});
       }
     } finally {
       this.callState.set('ended');
-      this.cleanupPeerConnection();
+      this.cleanupPeerConnection(true);
       this.cleanupMedia();
       this.cleanupSocket();
       this.announce('You have left the video consultation.');

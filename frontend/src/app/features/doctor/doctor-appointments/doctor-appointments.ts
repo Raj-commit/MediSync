@@ -8,6 +8,7 @@ import {
   PaginationInfo,
 } from '../../../core/appointments/appointments.models';
 import { AppointmentsService } from '../../../core/appointments/appointments.service';
+import { VideoService } from '../../../core/video/video.service';
 
 @Component({
   selector: 'app-doctor-appointments',
@@ -17,6 +18,7 @@ import { AppointmentsService } from '../../../core/appointments/appointments.ser
 })
 export class DoctorAppointments implements OnInit {
   protected readonly appointmentsService = inject(AppointmentsService);
+  protected readonly videoService = inject(VideoService);
 
   protected readonly activeTab = signal<'upcoming' | 'past'>('upcoming');
   protected readonly statusFilter = signal<AppointmentStatus | ''>('');
@@ -104,27 +106,23 @@ export class DoctorAppointments implements OnInit {
     this.actionError.set(null);
     this.actionSuccess.set(null);
 
-    this.appointmentsService
-      .manageAppointment(apt.id, { action: 'accept' })
-      .subscribe({
-        next: (response) => {
-          this.submittingActionId.set(null);
-          this.actionSuccess.set('Appointment accepted and confirmed.');
-          this.appointments.update((list) =>
-            list.map((a) =>
-              a.id === apt.id ? { ...a, status: response.appointment.status } : a,
-            ),
-          );
-        },
-        error: (err: HttpErrorResponse) => {
-          this.submittingActionId.set(null);
-          if (err.status === 0) {
-            this.actionError.set('Cannot reach the server. Please try again.');
-          } else {
-            this.actionError.set(err.error?.message || 'Failed to accept appointment.');
-          }
-        },
-      });
+    this.appointmentsService.manageAppointment(apt.id, { action: 'accept' }).subscribe({
+      next: (response) => {
+        this.submittingActionId.set(null);
+        this.actionSuccess.set('Appointment accepted and confirmed.');
+        this.appointments.update((list) =>
+          list.map((a) => (a.id === apt.id ? { ...a, status: response.appointment.status } : a)),
+        );
+      },
+      error: (err: HttpErrorResponse) => {
+        this.submittingActionId.set(null);
+        if (err.status === 0) {
+          this.actionError.set('Cannot reach the server. Please try again.');
+        } else {
+          this.actionError.set(err.error?.message || 'Failed to accept appointment.');
+        }
+      },
+    });
   }
 
   protected openRejectModal(apt: AppointmentItem): void {
@@ -148,28 +146,24 @@ export class DoctorAppointments implements OnInit {
     this.submittingReject.set(true);
     this.rejectError.set(null);
 
-    this.appointmentsService
-      .manageAppointment(target.id, { action: 'reject' })
-      .subscribe({
-        next: (response) => {
-          this.submittingReject.set(false);
-          this.rejectTarget.set(null);
-          this.actionSuccess.set('Appointment rejected. The time slot has been released.');
-          this.appointments.update((list) =>
-            list.map((a) =>
-              a.id === target.id ? { ...a, status: response.appointment.status } : a,
-            ),
-          );
-        },
-        error: (err: HttpErrorResponse) => {
-          this.submittingReject.set(false);
-          if (err.status === 0) {
-            this.rejectError.set('Cannot reach the server. Please try again.');
-          } else {
-            this.rejectError.set(err.error?.message || 'Failed to reject appointment.');
-          }
-        },
-      });
+    this.appointmentsService.manageAppointment(target.id, { action: 'reject' }).subscribe({
+      next: (response) => {
+        this.submittingReject.set(false);
+        this.rejectTarget.set(null);
+        this.actionSuccess.set('Appointment rejected. The time slot has been released.');
+        this.appointments.update((list) =>
+          list.map((a) => (a.id === target.id ? { ...a, status: response.appointment.status } : a)),
+        );
+      },
+      error: (err: HttpErrorResponse) => {
+        this.submittingReject.set(false);
+        if (err.status === 0) {
+          this.rejectError.set('Cannot reach the server. Please try again.');
+        } else {
+          this.rejectError.set(err.error?.message || 'Failed to reject appointment.');
+        }
+      },
+    });
   }
 
   protected completeAppointment(apt: AppointmentItem): void {
@@ -177,27 +171,23 @@ export class DoctorAppointments implements OnInit {
     this.actionError.set(null);
     this.actionSuccess.set(null);
 
-    this.appointmentsService
-      .manageAppointment(apt.id, { action: 'complete' })
-      .subscribe({
-        next: (response) => {
-          this.submittingActionId.set(null);
-          this.actionSuccess.set('Appointment marked as completed.');
-          this.appointments.update((list) =>
-            list.map((a) =>
-              a.id === apt.id ? { ...a, status: response.appointment.status } : a,
-            ),
-          );
-        },
-        error: (err: HttpErrorResponse) => {
-          this.submittingActionId.set(null);
-          if (err.status === 0) {
-            this.actionError.set('Cannot reach the server. Please try again.');
-          } else {
-            this.actionError.set(err.error?.message || 'Failed to complete appointment.');
-          }
-        },
-      });
+    this.appointmentsService.manageAppointment(apt.id, { action: 'complete' }).subscribe({
+      next: (response) => {
+        this.submittingActionId.set(null);
+        this.actionSuccess.set('Appointment marked as completed.');
+        this.appointments.update((list) =>
+          list.map((a) => (a.id === apt.id ? { ...a, status: response.appointment.status } : a)),
+        );
+      },
+      error: (err: HttpErrorResponse) => {
+        this.submittingActionId.set(null);
+        if (err.status === 0) {
+          this.actionError.set('Cannot reach the server. Please try again.');
+        } else {
+          this.actionError.set(err.error?.message || 'Failed to complete appointment.');
+        }
+      },
+    });
   }
 
   protected canAccept(apt: AppointmentItem): boolean {
@@ -212,6 +202,11 @@ export class DoctorAppointments implements OnInit {
   protected canComplete(apt: AppointmentItem): boolean {
     const isStartedOrPast = new Date(apt.dateTime).getTime() <= Date.now();
     return isStartedOrPast && apt.status === 'confirmed';
+  }
+
+  protected canJoinVideo(apt: AppointmentItem): boolean {
+    if (apt.status !== 'confirmed') return false;
+    return this.videoService.isWithinCallWindow(apt.dateTime, apt.endTime);
   }
 
   protected canChat(apt: AppointmentItem): boolean {

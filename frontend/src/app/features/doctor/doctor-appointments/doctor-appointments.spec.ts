@@ -97,7 +97,9 @@ describe('DoctorAppointments Component', () => {
   it('filters appointments by switching to Past timeline tab', async () => {
     fixture.detectChanges();
 
-    const req1 = http.expectOne((r) => r.url === APPOINTMENTS_URL && r.params.get('when') === 'upcoming');
+    const req1 = http.expectOne(
+      (r) => r.url === APPOINTMENTS_URL && r.params.get('when') === 'upcoming',
+    );
     req1.flush(mockAppointmentsResponse);
 
     await fixture.whenStable();
@@ -107,7 +109,9 @@ describe('DoctorAppointments Component', () => {
     pastTab.click();
     fixture.detectChanges();
 
-    const req2 = http.expectOne((r) => r.url === APPOINTMENTS_URL && r.params.get('when') === 'past');
+    const req2 = http.expectOne(
+      (r) => r.url === APPOINTMENTS_URL && r.params.get('when') === 'past',
+    );
     expect(req2.request.method).toBe('GET');
     req2.flush({
       appointments: [mockAppointmentsResponse.appointments[1]],
@@ -244,7 +248,9 @@ describe('DoctorAppointments Component', () => {
     fixture.detectChanges();
 
     expect(page.textContent).toContain('No appointments found');
-    expect(page.querySelector('.empty-actions a')?.getAttribute('routerLink')).toBe('/doctor/availability');
+    expect(page.querySelector('.empty-actions a')?.getAttribute('routerLink')).toBe(
+      '/doctor/availability',
+    );
   });
 
   it('renders a Chat button only for confirmed or completed appointments', async () => {
@@ -265,5 +271,65 @@ describe('DoctorAppointments Component', () => {
     expect(apt1ChatBtn).toBeNull();
     expect(apt2ChatBtn).not.toBeNull();
     expect(apt2ChatBtn?.getAttribute('href')).toBe('/appointments/apt-2/chat');
+  });
+  it('renders a Join video button only for confirmed appointments within the call window', async () => {
+    const now = Date.now();
+    const activeStart = new Date(now + 2 * 60 * 1000).toISOString();
+    const activeEnd = new Date(now + 32 * 60 * 1000).toISOString();
+    const farFutureStart = new Date(now + 48 * 3600 * 1000).toISOString();
+    const farFutureEnd = new Date(now + 48.5 * 3600 * 1000).toISOString();
+
+    const customResponse = {
+      appointments: [
+        {
+          id: 'apt-active',
+          patient: { id: 'pat-1', name: 'Jane Patient' },
+          dateTime: activeStart,
+          endTime: activeEnd,
+          status: 'confirmed',
+        },
+        {
+          id: 'apt-requested',
+          patient: { id: 'pat-2', name: 'Bob Patient' },
+          dateTime: activeStart,
+          endTime: activeEnd,
+          status: 'requested',
+        },
+        {
+          id: 'apt-far',
+          patient: { id: 'pat-3', name: 'Alice Patient' },
+          dateTime: farFutureStart,
+          endTime: farFutureEnd,
+          status: 'confirmed',
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 3,
+        totalPages: 1,
+      },
+    };
+
+    fixture.detectChanges();
+
+    const req = http.expectOne((r) => r.url === APPOINTMENTS_URL);
+    req.flush(customResponse);
+
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const cards = page.querySelectorAll('.appointment-card');
+    expect(cards).toHaveLength(3);
+
+    const activeVideoBtn = cards[0].querySelector('.button-video');
+    const requestedVideoBtn = cards[1].querySelector('.button-video');
+    const farVideoBtn = cards[2].querySelector('.button-video');
+
+    expect(activeVideoBtn).not.toBeNull();
+    expect(activeVideoBtn?.getAttribute('href')).toBe('/appointments/apt-active/video');
+    expect(activeVideoBtn?.textContent?.trim()).toBe('Join video');
+    expect(requestedVideoBtn).toBeNull();
+    expect(farVideoBtn).toBeNull();
   });
 });

@@ -89,7 +89,9 @@
     } @else {
       <div class="results-header">
         <p class="results-count">
-          Showing {{ appointments().length }} of {{ pagination().total }} appointment{{ pagination().total === 1 ? '' : 's' }}
+          Showing {{ appointments().length }} of {{ pagination().total }} appointment{{
+            pagination().total === 1 ? '' : 's'
+          }}
         </p>
       </div>
 
@@ -116,8 +118,17 @@
                 <span class="time-hours">{{ formatTimeRange(apt.dateTime, apt.endTime) }}</span>
               </div>
 
-              @if (isActionable(apt) || canChat(apt)) {
+              @if (isActionable(apt) || canChat(apt) || canJoinVideo(apt)) {
                 <div class="appointment-actions">
+                  @if (canJoinVideo(apt)) {
+                    <a
+                      [routerLink]="['/appointments', apt.id, 'video']"
+                      class="button button-video button-sm"
+                      aria-label="Join video consultation"
+                    >
+                      Join video
+                    </a>
+                  }
                   @if (canChat(apt)) {
                     <a
                       [routerLink]="['/appointments', apt.id, 'chat']"
@@ -135,7 +146,9 @@
                       [attr.aria-expanded]="reschedulingAppointmentId() === apt.id"
                       (click)="toggleReschedule(apt)"
                     >
-                      {{ reschedulingAppointmentId() === apt.id ? 'Close reschedule' : 'Reschedule' }}
+                      {{
+                        reschedulingAppointmentId() === apt.id ? 'Close reschedule' : 'Reschedule'
+                      }}
                     </button>
                     <button
                       type="button"
@@ -155,7 +168,8 @@
                 <div class="reschedule-header">
                   <h3>Select a new appointment slot</h3>
                   <p class="reschedule-sub">
-                    Pick an open slot with Dr. {{ apt.doctor?.name }}. The status will reset to requested until confirmed by the doctor.
+                    Pick an open slot with Dr. {{ apt.doctor?.name }}. The status will reset to
+                    requested until confirmed by the doctor.
                   </p>
                 </div>
 
@@ -285,7 +299,9 @@
         <p>
           Are you sure you want to cancel your appointment with
           <strong>Dr. {{ target.doctor?.name }}</strong> on
-          <strong>{{ formatDate(target.dateTime) }}</strong> ({{ formatTimeRange(target.dateTime, target.endTime) }})?
+          <strong>{{ formatDate(target.dateTime) }}</strong> ({{
+            formatTimeRange(target.dateTime, target.endTime)
+          }})?
         </p>
         <p class="modal-hint">The slot will be released and made available for other patients.</p>
 

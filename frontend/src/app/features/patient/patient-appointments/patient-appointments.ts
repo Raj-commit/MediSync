@@ -9,6 +9,7 @@ import {
   PaginationInfo,
 } from '../../../core/appointments/appointments.models';
 import { AppointmentsService } from '../../../core/appointments/appointments.service';
+import { VideoService } from '../../../core/video/video.service';
 
 export interface DaySlotGroup {
   dateLabel: string;
@@ -23,6 +24,7 @@ export interface DaySlotGroup {
 })
 export class PatientAppointments implements OnInit {
   protected readonly appointmentsService = inject(AppointmentsService);
+  protected readonly videoService = inject(VideoService);
 
   protected readonly activeTab = signal<'upcoming' | 'past'>('upcoming');
   protected readonly statusFilter = signal<AppointmentStatus | ''>('');
@@ -165,9 +167,7 @@ export class PatientAppointments implements OnInit {
 
         // Update appointment in current list
         this.appointments.update((list) =>
-          list.map((a) =>
-            a.id === target.id ? { ...a, status: response.appointment.status } : a,
-          ),
+          list.map((a) => (a.id === target.id ? { ...a, status: response.appointment.status } : a)),
         );
       },
       error: (err: HttpErrorResponse) => {
@@ -204,10 +204,13 @@ export class PatientAppointments implements OnInit {
     this.doctorSlots.set([]);
   }
 
-  protected loadDoctorSlots(doctorId: string, currentStartIso?: string, preserveError = false): void {
+  protected loadDoctorSlots(
+    doctorId: string,
+    currentStartIso?: string,
+    preserveError = false,
+  ): void {
     this.rescheduleLoading.set(true);
-    if (!preserveError)
-    this.rescheduleError.set(null);
+    if (!preserveError) this.rescheduleError.set(null);
 
     this.appointmentsService.getDoctorAvailability(doctorId).subscribe({
       next: (response) => {
@@ -272,7 +275,8 @@ export class PatientAppointments implements OnInit {
           if (err.status === 409) {
             // Slot taken: show message and refresh available slots immediately
             this.rescheduleError.set(
-              err.error?.message || 'This slot is already booked. Available slots have been reloaded.',
+              err.error?.message ||
+                'This slot is already booked. Available slots have been reloaded.',
             );
             this.selectedNewSlot.set(null);
             this.loadDoctorSlots(doctorId, undefined, true);
@@ -288,6 +292,11 @@ export class PatientAppointments implements OnInit {
   protected isActionable(apt: AppointmentItem): boolean {
     const isFuture = new Date(apt.dateTime).getTime() > Date.now();
     return isFuture && (apt.status === 'requested' || apt.status === 'confirmed');
+  }
+
+  protected canJoinVideo(apt: AppointmentItem): boolean {
+    if (apt.status !== 'confirmed') return false;
+    return this.videoService.isWithinCallWindow(apt.dateTime, apt.endTime);
   }
 
   protected canChat(apt: AppointmentItem): boolean {

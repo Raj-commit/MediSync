@@ -246,7 +246,10 @@ describe('VideoPage (Pre-call Setup, Signaling, and Live Consultation)', () => {
 
   it('renders Access Denied state when API returns 403', async () => {
     mockVideoService.getVideoStatus.mockReturnValue(
-      throwError(() => ({ status: 403, error: { code: 'FORBIDDEN', message: 'Admins cannot access' } })),
+      throwError(() => ({
+        status: 403,
+        error: { code: 'FORBIDDEN', message: 'Admins cannot access' },
+      })),
     );
 
     fixture.detectChanges();
@@ -655,5 +658,85 @@ describe('VideoPage (Pre-call Setup, Signaling, and Live Consultation)', () => {
     expect(mockPc.close).toHaveBeenCalled();
     expect(mockMediaDevicesService.stopMediaStream).toHaveBeenCalled();
     expect(component.callState()).toBe('ended');
+  });
+  it('handles socket reconnection: transitions to reconnecting and re-joins room', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: false,
+      isInitiator: true,
+      iceServers: [],
+    });
+
+    await component.joinCall();
+    const remoteStream = createMockStream();
+    mockPc.ontrack!({ streams: [remoteStream], track: createMockTrack('video') });
+    expect(component.callState()).toBe('connected');
+
+    // Socket drops connection
+    mockSocketService.status.set('reconnecting');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.callState()).toBe('reconnecting');
+
+    // Socket reconnects
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: false,
+      isInitiator: true,
+      iceServers: [],
+    });
+
+    mockSocketService.status.set('connected');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(mockSocketService.emitWithAck).toHaveBeenCalledWith('join_video', {
+      appointmentId: 'appt-100',
+    });
+  });
+
+  it('cleans up media and peer connection on beforeunload and ngOnDestroy', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: false,
+      isInitiator: true,
+      iceServers: [],
+    });
+
+    await component.joinCall();
+
+    component.onBeforeUnload();
+    expect(mockPc.close).toHaveBeenCalled();
+    expect(mockMediaDevicesService.stopMediaStream).toHaveBeenCalled();
+
+    fixture.destroy();
+    expect(mockMediaDevicesService.stopMediaStream).toHaveBeenCalled();
+  });
+
+  it('does not render ICE server hostnames or secrets in the DOM', async () => {
+    mockVideoService.getVideoStatus.mockReturnValue(
+      of({
+        ...mockSuccessResponse,
+        iceServers: [{ urls: 'stun:super-secret-turn.example.com:3478' }],
+      }),
+    );
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const element: HTMLElement = fixture.nativeElement;
+    expect(element.textContent).not.toContain('super-secret-turn.example.com');
+    expect(element.textContent).not.toContain('3478');
   });
 });
