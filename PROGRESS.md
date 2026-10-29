@@ -6,10 +6,16 @@ Last updated: 2026-10-29  by: Alis
 
 ## Current work
 
-- Branch: `feature/prescriptions-api`
-- Feature: prescriptions (API done, backend)
-- Last thing finished: FR-14, FR-15, FR-16 (UC-10, UC-11) backend implementation: Prescription model with unique compound index on appointment; validatePrescription with strict body and query validation; Django PDF client (pdfService) connecting to POST /api/prescriptions/pdf with X-Service-Key, 5s timeout, 2MB size limit, magic header validation, and mapping all failures to safe 502 PDF_SERVICE_UNAVAILABLE; POST /api/v1/prescriptions with doctor-only access, completed appointment status requirement, 404 anti-enumeration, single prescription per appointment (409 PRESCRIPTION_EXISTS), zero data loss on Django failure, and non-blocking patient notification; GET /api/v1/prescriptions with role scoping (patients see own, doctors see issued), newest-first sorting, pagination, and ?appointmentId= filter for doctor UI lookup; GET /api/v1/prescriptions/:id/pdf with streaming raw PDF bytes, safe download headers (Content-Type, Content-Disposition, Cache-Control: no-store, X-Content-Type-Options: nosniff), 404 anti-enumeration, and on-demand PDF generation/caching; and 31 automated Jest/Supertest tests passing in backend/tests/prescriptions.test.js (325/325 total backend tests passing)
-- Next step: Open PR for feature/prescriptions-api into main; start feature/prescriptions-ui
+- Branch: `feature/prescriptions-ui`
+- Feature: prescriptions (UI done, frontend)
+- Last thing finished: FR-14, FR-16 (UC-10, UC-11) frontend implementation:
+  - PrescriptionsService with model types, 24-character hex ID validation, getPrescriptions, createPrescription, downloadPrescriptionPdf (Blob response), triggerBlobDownload with application/pdf validation, temporary anchor click, and immediate object URL revocation;
+  - Patient prescriptions view (/patient/prescriptions) protected by roleGuard('patient'), date/doctor display, medication items with dosages and pre-wrap instructions, loading/empty/error states, pagination, and Download PDF button with loading lock;
+  - Patient dashboard navigation button on /patient;
+  - Doctor prescription view (/doctor/appointments/:id/prescription) protected by roleGuard('doctor'), pre-validation of 24-hex appointment ID, existing prescription check via ?appointmentId=, dynamic medicine form array (1 to 50 items) with character counters (200/200/500), accessible confirmation modal dialog with permanent immutability warning, graceful 409 PRESCRIPTION_EXISTS recovery, pending PDF alert and on-demand retry;
+  - Doctor appointments card integration on /doctor/appointments adding "Prescribe" button for completed appointments;
+  - Full Vitest test suite passing (37 test files, 287 passing tests) and successful production build.
+- Next step: Open PR for feature/prescriptions-ui into main; start feature/symptom-checker-api (FR-17)
 - Blockers or open questions: none
 
 ## Feature status
@@ -28,7 +34,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 8 | chat | done | done | Alis (API), Hitman0137 (UI) | FR-12 (UC-08). Shared /appointments/:id/chat route, Socket.IO live delivery, history pagination, cards integration, 180 tests passing |
 | 9 | video-consultation | done | done | Uday Raj (API), Alis (UI) | FR-11 (UC-07) WebRTC signaling over Socket.IO, VideoSession lifecycle, ICE server config. Shared /appointments/:id/video UI with pre-call preview, signaling, auto-reconnect, cards integration, 24 Vitest tests |
 | 10 | medical-records | done | done | Riyank (API), Uday Raj (UI) | FR-13 (UC-09). GET /records/me, GET /records/patient/:patientId, POST /records/patient/:patientId/entries with atomic upsert, age derivation, zero PII leak, anti-enumeration, and no-store caching. Separate patient and doctor routes, confirmation dialog, character counters, plain-text XSS defense, full Vitest coverage |
-| 11 | prescriptions | done | not started | Alis (API) | FR-14, FR-15, FR-16 (UC-10, UC-11). POST /prescriptions, GET /prescriptions, GET /prescriptions/:id/pdf. Django integration with ReportLab, single prescription 409, 404 anti-enumeration, on-demand PDF recovery, 31 tests passing |
+| 11 | prescriptions | done | done | Alis (API), Uday Raj (UI) | FR-14, FR-15, FR-16 (UC-10, UC-11). POST /prescriptions, GET /prescriptions, GET /prescriptions/:id/pdf. Full frontend UI at /patient/prescriptions and /doctor/appointments/:id/prescription with PDF download, dynamic medicines FormArray, confirmation modal, 409 recovery, 287 frontend tests passing |
 | 12 | prescription-pdf | done | n/a | Uday Raj | Merged in PR #17. Django endpoint POST /api/prescriptions/pdf with ReportLab, timing-safe X-Service-Key check, escaping, and tests |
 | 13 | symptom-checker | not started | not started | | |
 | 14 | admin-user-management | not started | not started | | |
@@ -150,6 +156,11 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-29 | Anti-enumeration on prescriptions: `POST /prescriptions`, `GET /prescriptions`, and `GET /prescriptions/:id/pdf` return 404 `NOT_FOUND` if appointment/prescription does not exist OR is not owned by the caller. Admins receive 403 `FORBIDDEN` | Prevents attackers from scanning or guessing valid appointment or prescription IDs |
 | 2026-10-29 | Doctor UI lookup via `?appointmentId=`: `GET /api/v1/prescriptions?appointmentId=<id>` returns `total: 1` if a prescription exists and `total: 0` if none exists | Allows doctor UI to dynamically check whether an appointment already has a prescription |
 | 2026-10-29 | Non-blocking prescription notification: new notification type `prescription_created` with safe template `Dr. ${doctorName} has issued a digital prescription for your appointment.` without medicine or clinical data. Notification failure never rolls back prescription | Guarantees prescription creation reliability while keeping patient alerted |
+| 2026-10-29 | Patient prescriptions route: `/patient/prescriptions` protected by `roleGuard('patient')` with title `Prescriptions | MediSync`, linked from `/patient` dashboard | Enforces role boundary and provides direct patient access to all digital prescriptions |
+| 2026-10-29 | Doctor prescription route: `/doctor/appointments/:id/prescription` protected by `roleGuard('doctor')` with title `Prescription | MediSync`, linked from completed appointment cards | Doctors access prescriptions in the context of completed appointments with pre-validation of the 24-hex appointment ID |
+| 2026-10-29 | PDF download via Blob & temporary anchor: `HttpClient.get(..., { responseType: 'blob' })` verifies `application/pdf`, creates temporary Blob object URL, triggers download via hidden anchor, and immediately revokes object URL in `finally` | Avoids asynchronous popup blocker failures associated with `window.open`, maintains zero sensitive data leakage in URLs or logs |
+| 2026-10-29 | Prescription creation confirmation modal: accessible modal (`role="dialog"`, `aria-modal="true"`) summarizing medicines and dosages with explicit warning: `"Prescriptions are permanent and cannot be modified or deleted once issued."` | Prevents accidental submission of immutable clinical documents |
+| 2026-10-29 | Graceful 409 conflict recovery & pending PDF handling: on 409 `PRESCRIPTION_EXISTS`, UI re-queries existing prescription and seamlessly transitions to its read-only view; when `pdfStatus === 'pending'`, displays clear message that prescription was saved with "Retry PDF Download" button | Guarantees doctor never loses context or re-submits unnecessarily, while maintaining zero clinical data loss |
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
 - Added the optional env variable `ADMIN_PHONE` (default placeholder +910000000000), because the User model requires a phone for every user, including the admin.
