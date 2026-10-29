@@ -130,7 +130,8 @@
                 canComplete(apt) ||
                 canChat(apt) ||
                 canJoinVideo(apt) ||
-                canViewRecord(apt)
+                canViewRecord(apt) ||
+                canPrescribe(apt)
               ) {
                 <div class="appointment-actions">
                   @if (canJoinVideo(apt)) {
@@ -158,6 +159,15 @@
                       aria-label="View patient medical record"
                     >
                       Patient record
+                    </a>
+                  }
+                  @if (canPrescribe(apt)) {
+                    <a
+                      [routerLink]="['/doctor/appointments', apt.id, 'prescription']"
+                      class="button button-sm button-prescription"
+                      aria-label="Manage prescription"
+                    >
+                      Prescribe
                     </a>
                   }
 

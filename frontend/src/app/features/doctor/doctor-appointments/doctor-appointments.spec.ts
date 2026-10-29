@@ -397,4 +397,51 @@ describe('DoctorAppointments Component', () => {
     expect(requestedRecordBtn).toBeNull();
     expect(cancelledRecordBtn).toBeNull();
   });
+
+  it('displays Prescribe button only for completed appointments linking to prescription page', async () => {
+    const customResponse = {
+      appointments: [
+        {
+          id: 'apt-completed-1',
+          patient: { id: 'pat-1', name: 'Completed Patient' },
+          dateTime: pastStart,
+          endTime: pastEnd,
+          status: 'completed',
+        },
+        {
+          id: 'apt-confirmed-1',
+          patient: { id: 'pat-2', name: 'Confirmed Patient' },
+          dateTime: futureStart,
+          endTime: futureEnd,
+          status: 'confirmed',
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 2,
+        totalPages: 1,
+      },
+    };
+
+    fixture.detectChanges();
+    const req = http.expectOne((r) => r.url === APPOINTMENTS_URL);
+    req.flush(customResponse);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const cards = page.querySelectorAll('.appointment-card');
+    expect(cards).toHaveLength(2);
+
+    const completedPrescribeBtn = cards[0].querySelector('.button-prescription');
+    const confirmedPrescribeBtn = cards[1].querySelector('.button-prescription');
+
+    expect(completedPrescribeBtn).not.toBeNull();
+    expect(completedPrescribeBtn?.getAttribute('href')).toBe(
+      '/doctor/appointments/apt-completed-1/prescription',
+    );
+    expect(completedPrescribeBtn?.textContent?.trim()).toBe('Prescribe');
+
+    expect(confirmedPrescribeBtn).toBeNull();
+  });
 });

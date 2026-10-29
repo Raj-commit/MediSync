@@ -121,5 +121,19 @@ describe('App', () => {
 
       expect(router.url).toBe('/doctor');
     });
+
+    it('protects /patient/prescriptions from doctors and redirects to /doctor', async () => {
+      logInAs('doctor');
+      const { router } = await visit('/patient/prescriptions');
+
+      expect(router.url).toBe('/doctor');
+    });
+
+    it('protects /doctor/appointments/:id/prescription from patients and redirects to /patient', async () => {
+      logInAs('patient');
+      const { router } = await visit('/doctor/appointments/507f1f77bcf86cd799439011/prescription');
+
+      expect(router.url).toBe('/patient');
+    });
   });
 });

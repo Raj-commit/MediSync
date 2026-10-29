@@ -300,6 +300,19 @@
   border-color: #94a3b8;
 }
 
+.button-prescription {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.button-prescription:hover:not(:disabled) {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
 .button-chat:hover:not(:disabled) {
   background: #ccfbf1;
   border-color: var(--color-primary);
