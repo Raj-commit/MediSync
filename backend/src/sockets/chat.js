@@ -59,13 +59,11 @@ function _resetFloodLimits() {
 async function verifyActiveUser(socket) {
   const userId = socket.user?._id || socket.user?.id;
   if (!userId) {
-    socket.disconnect(true);
     throw new AppError(401, 'UNAUTHORIZED', 'Please log in to continue');
   }
 
   const user = await User.findById(userId);
   if (!user || !user.isActive) {
-    socket.disconnect(true);
     throw new AppError(403, 'ACCOUNT_DISABLED', 'This account has been disabled');
   }
 
@@ -129,6 +127,10 @@ function registerChatHandlers(io, socket) {
         code,
         message,
       });
+
+      if (code === 'ACCOUNT_DISABLED') {
+        socket.disconnect(true);
+      }
     }
   });
 
@@ -182,6 +184,10 @@ function registerChatHandlers(io, socket) {
         code,
         message,
       });
+
+      if (code === 'ACCOUNT_DISABLED') {
+        socket.disconnect(true);
+      }
     }
   });
 }
