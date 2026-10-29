@@ -47,6 +47,15 @@ export const routes: Routes = [
     title: 'Patient profile | MediSync',
   },
   {
+    path: 'patient/records',
+    canActivate: [roleGuard('patient')],
+    loadComponent: () =>
+      import('./features/patient/patient-records/patient-records').then(
+        (m) => m.PatientRecords,
+      ),
+    title: 'My medical records | MediSync',
+  },
+  {
     path: 'patient',
     canActivate: [roleGuard('patient')],
     loadComponent: () =>
@@ -63,6 +72,15 @@ export const routes: Routes = [
         (m) => m.DoctorAppointments,
       ),
     title: 'My appointments | MediSync',
+  },
+  {
+    path: 'doctor/patient-records/:patientId',
+    canActivate: [roleGuard('doctor')],
+    loadComponent: () =>
+      import('./features/doctor/doctor-patient-records/doctor-patient-records').then(
+        (m) => m.DoctorPatientRecords,
+      ),
+    title: 'Patient medical record | MediSync',
   },
   {
     path: 'doctor/availability',

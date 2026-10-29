@@ -209,6 +209,10 @@ export class DoctorAppointments implements OnInit {
     return this.videoService.isWithinCallWindow(apt.dateTime, apt.endTime);
   }
 
+  protected canViewRecord(apt: AppointmentItem): boolean {
+    return (apt.status === 'confirmed' || apt.status === 'completed') && !!apt.patient?.id;
+  }
+
   protected canChat(apt: AppointmentItem): boolean {
     return apt.status === 'confirmed' || apt.status === 'completed';
   }

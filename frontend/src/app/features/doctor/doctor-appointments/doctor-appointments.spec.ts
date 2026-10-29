@@ -332,4 +332,69 @@ describe('DoctorAppointments Component', () => {
     expect(requestedVideoBtn).toBeNull();
     expect(farVideoBtn).toBeNull();
   });
+
+  it('renders "Patient record" button only for confirmed or completed appointments', async () => {
+    const customResponse = {
+      appointments: [
+        {
+          id: 'apt-confirmed',
+          patient: { id: 'pat-1', name: 'Confirmed Patient' },
+          dateTime: futureStart,
+          endTime: futureEnd,
+          status: 'confirmed',
+        },
+        {
+          id: 'apt-completed',
+          patient: { id: 'pat-2', name: 'Completed Patient' },
+          dateTime: pastStart,
+          endTime: pastEnd,
+          status: 'completed',
+        },
+        {
+          id: 'apt-requested',
+          patient: { id: 'pat-3', name: 'Requested Patient' },
+          dateTime: futureStart,
+          endTime: futureEnd,
+          status: 'requested',
+        },
+        {
+          id: 'apt-cancelled',
+          patient: { id: 'pat-4', name: 'Cancelled Patient' },
+          dateTime: pastStart,
+          endTime: pastEnd,
+          status: 'cancelled',
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 4,
+        totalPages: 1,
+      },
+    };
+
+    fixture.detectChanges();
+    const req = http.expectOne((r) => r.url === APPOINTMENTS_URL);
+    req.flush(customResponse);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const cards = page.querySelectorAll('.appointment-card');
+    expect(cards).toHaveLength(4);
+
+    const confirmedRecordBtn = cards[0].querySelector('.button-record');
+    const completedRecordBtn = cards[1].querySelector('.button-record');
+    const requestedRecordBtn = cards[2].querySelector('.button-record');
+    const cancelledRecordBtn = cards[3].querySelector('.button-record');
+
+    expect(confirmedRecordBtn).not.toBeNull();
+    expect(confirmedRecordBtn?.getAttribute('href')).toBe('/doctor/patient-records/pat-1');
+    expect(confirmedRecordBtn?.textContent?.trim()).toBe('Patient record');
+
+    expect(completedRecordBtn).not.toBeNull();
+    expect(completedRecordBtn?.getAttribute('href')).toBe('/doctor/patient-records/pat-2');
+
+    expect(requestedRecordBtn).toBeNull();
+    expect(cancelledRecordBtn).toBeNull();
+  });
 });

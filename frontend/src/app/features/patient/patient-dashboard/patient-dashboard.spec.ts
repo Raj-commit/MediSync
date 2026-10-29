@@ -27,6 +27,7 @@ describe('PatientDashboard', () => {
     expect(page.querySelector('h1')?.textContent).toContain('Patient dashboard');
     expect(page.textContent).toContain('Welcome, Asha Patel.');
     expect(page.querySelector('a[routerLink="/patient/doctors"]')).not.toBeNull();
+    expect(page.querySelector('a[routerLink="/patient/records"]')).not.toBeNull();
     expect(page.querySelector('a[routerLink="/patient/profile"]')).not.toBeNull();
   });
 });

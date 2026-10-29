@@ -129,7 +129,8 @@
                 canReject(apt) ||
                 canComplete(apt) ||
                 canChat(apt) ||
-                canJoinVideo(apt)
+                canJoinVideo(apt) ||
+                canViewRecord(apt)
               ) {
                 <div class="appointment-actions">
                   @if (canJoinVideo(apt)) {
@@ -148,6 +149,15 @@
                       aria-label="Open consultation chat"
                     >
                       Chat
+                    </a>
+                  }
+                  @if (canViewRecord(apt)) {
+                    <a
+                      [routerLink]="['/doctor/patient-records', apt.patient!.id]"
+                      class="button button-sm button-record"
+                      aria-label="View patient medical record"
+                    >
+                      Patient record
                     </a>
                   }
 
