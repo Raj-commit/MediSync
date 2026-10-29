@@ -1,33 +1,35 @@
-const mongoose = require('mongoose');
-const { Notification, NOTIFICATION_TYPES } = require('../models/Notification');
+const mongoose = require("mongoose");
+const { Notification, NOTIFICATION_TYPES } = require("../models/Notification");
 const {
   validateNotificationsQuery,
   validateNotificationId,
   validateEmptyBody,
-} = require('../utils/validateNotification');
-const AppError = require('../utils/AppError');
+} = require("../utils/validateNotification");
+const AppError = require("../utils/AppError");
 
 // Template generators: plain text messages with no sensitive PII,
 // no emails, no phones, no medical data, and no localized dates or times.
 const templates = {
   appointmentRequested: (patientName) =>
-    `You have a new appointment request from ${patientName ? patientName.trim() : 'a patient'}.`,
+    `You have a new appointment request from ${patientName ? patientName.trim() : "a patient"}.`,
   appointmentRequestSent: (doctorName) =>
-    `Your appointment request with Dr. ${doctorName ? doctorName.trim() : 'your doctor'} has been sent.`,
+    `Your appointment request with Dr. ${doctorName ? doctorName.trim() : "your doctor"} has been sent.`,
   appointmentConfirmed: (doctorName) =>
-    `Dr. ${doctorName ? doctorName.trim() : 'your doctor'} confirmed your appointment.`,
+    `Dr. ${doctorName ? doctorName.trim() : "your doctor"} confirmed your appointment.`,
   appointmentRejected: (doctorName) =>
-    `Dr. ${doctorName ? doctorName.trim() : 'your doctor'} declined your appointment request.`,
+    `Dr. ${doctorName ? doctorName.trim() : "your doctor"} declined your appointment request.`,
   appointmentCancelled: (patientName) =>
-    `Appointment with ${patientName ? patientName.trim() : 'a patient'} was cancelled.`,
+    `Appointment with ${patientName ? patientName.trim() : "a patient"} was cancelled.`,
   appointmentRescheduled: (patientName) =>
-    `Appointment with ${patientName ? patientName.trim() : 'a patient'} was rescheduled.`,
+    `Appointment with ${patientName ? patientName.trim() : "a patient"} was rescheduled.`,
   appointmentCompleted: (doctorName) =>
-    `Your consultation with Dr. ${doctorName ? doctorName.trim() : 'your doctor'} has been completed.`,
+    `Your consultation with Dr. ${doctorName ? doctorName.trim() : "your doctor"} has been completed.`,
   appointmentReminder: (doctorName) =>
-    `You have an upcoming appointment with Dr. ${doctorName ? doctorName.trim() : 'your doctor'}.`,
+    `You have an upcoming appointment with Dr. ${doctorName ? doctorName.trim() : "your doctor"}.`,
   appointmentReminderDoctor: (patientName) =>
-    `You have an upcoming appointment with ${patientName ? patientName.trim() : 'a patient'}.`,
+    `You have an upcoming appointment with ${patientName ? patientName.trim() : "a patient"}.`,
+  prescriptionCreated: (doctorName) =>
+    `Dr. ${doctorName ? doctorName.trim() : "your doctor"} has issued a digital prescription for your appointment.`,
 };
 
 /**
@@ -39,8 +41,13 @@ function serializeNotification(doc) {
     type: doc.type,
     message: doc.message,
     status: doc.status,
-    appointment: doc.appointment ? (doc.appointment._id || doc.appointment).toString() : null,
-    createdAt: doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt,
+    appointment: doc.appointment
+      ? (doc.appointment._id || doc.appointment).toString()
+      : null,
+    createdAt:
+      doc.createdAt instanceof Date
+        ? doc.createdAt.toISOString()
+        : doc.createdAt,
   };
 }
 
@@ -57,19 +64,35 @@ function serializeNotification(doc) {
  */
 async function createNotification({ recipient, type, message, appointment }) {
   if (!recipient || !mongoose.isObjectIdOrHexString(recipient.toString())) {
-    throw new AppError(400, 'VALIDATION_ERROR', 'A valid recipient is required for notifications');
+    throw new AppError(
+      400,
+      "VALIDATION_ERROR",
+      "A valid recipient is required for notifications",
+    );
   }
 
   if (!NOTIFICATION_TYPES.includes(type)) {
-    throw new AppError(400, 'VALIDATION_ERROR', `Invalid notification type: "${type}"`);
+    throw new AppError(
+      400,
+      "VALIDATION_ERROR",
+      `Invalid notification type: "${type}"`,
+    );
   }
 
-  if (typeof message !== 'string' || message.trim() === '') {
-    throw new AppError(400, 'VALIDATION_ERROR', 'Notification message is required');
+  if (typeof message !== "string" || message.trim() === "") {
+    throw new AppError(
+      400,
+      "VALIDATION_ERROR",
+      "Notification message is required",
+    );
   }
 
   if (appointment && !mongoose.isObjectIdOrHexString(appointment.toString())) {
-    throw new AppError(400, 'VALIDATION_ERROR', 'Appointment must be a valid ObjectId');
+    throw new AppError(
+      400,
+      "VALIDATION_ERROR",
+      "Appointment must be a valid ObjectId",
+    );
   }
 
   const notification = await Notification.create({
@@ -77,12 +100,12 @@ async function createNotification({ recipient, type, message, appointment }) {
     type,
     message: message.trim(),
     appointment: appointment || undefined,
-    status: 'unread',
+    status: "unread",
   });
 
   // Emit real-time notification to user's socket room if Socket.IO is running
   try {
-    const { sendNotificationToUser } = require('../sockets');
+    const { sendNotificationToUser } = require("../sockets");
     sendNotificationToUser(recipient, serializeNotification(notification));
   } catch (socketErr) {
     // Non-blocking: DB save succeeded regardless of socket emission
@@ -97,8 +120,12 @@ async function createNotification({ recipient, type, message, appointment }) {
  * Computes unreadCount for the notification badge.
  */
 async function getNotifications(user, queryParams) {
-  if (user.role !== 'patient' && user.role !== 'doctor') {
-    throw new AppError(403, 'FORBIDDEN', 'You do not have permission to do this');
+  if (user.role !== "patient" && user.role !== "doctor") {
+    throw new AppError(
+      403,
+      "FORBIDDEN",
+      "You do not have permission to do this",
+    );
   }
 
   const { status, page, limit } = validateNotificationsQuery(queryParams);
@@ -113,7 +140,7 @@ async function getNotifications(user, queryParams) {
 
   const [total, unreadCount, docs] = await Promise.all([
     Notification.countDocuments(filter),
-    Notification.countDocuments({ recipient: recipientId, status: 'unread' }),
+    Notification.countDocuments({ recipient: recipientId, status: "unread" }),
     Notification.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -141,8 +168,12 @@ async function getNotifications(user, queryParams) {
  * returns 404 NOT_FOUND. Calling on an already read notification returns 200.
  */
 async function markAsRead(user, notificationId, body) {
-  if (user.role !== 'patient' && user.role !== 'doctor') {
-    throw new AppError(403, 'FORBIDDEN', 'You do not have permission to do this');
+  if (user.role !== "patient" && user.role !== "doctor") {
+    throw new AppError(
+      403,
+      "FORBIDDEN",
+      "You do not have permission to do this",
+    );
   }
 
   validateNotificationId(notificationId);
@@ -152,12 +183,12 @@ async function markAsRead(user, notificationId, body) {
 
   const notification = await Notification.findOneAndUpdate(
     { _id: notificationId, recipient: recipientId },
-    { status: 'read' },
-    { returnDocument: 'after' }
+    { status: "read" },
+    { returnDocument: "after" },
   );
 
   if (!notification) {
-    throw new AppError(404, 'NOT_FOUND', 'Notification not found');
+    throw new AppError(404, "NOT_FOUND", "Notification not found");
   }
 
   return {

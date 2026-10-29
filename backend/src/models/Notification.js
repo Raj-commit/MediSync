@@ -1,23 +1,24 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const NOTIFICATION_TYPES = [
-  'appointment_requested',
-  'appointment_request_sent',
-  'appointment_confirmed',
-  'appointment_rejected',
-  'appointment_cancelled',
-  'appointment_rescheduled',
-  'appointment_completed',
-  'appointment_reminder',
+  "appointment_requested",
+  "appointment_request_sent",
+  "appointment_confirmed",
+  "appointment_rejected",
+  "appointment_cancelled",
+  "appointment_rescheduled",
+  "appointment_completed",
+  "appointment_reminder",
+  "prescription_created",
 ];
 
-const NOTIFICATION_STATUSES = ['unread', 'read'];
+const NOTIFICATION_STATUSES = ["unread", "read"];
 
 const notificationSchema = new mongoose.Schema(
   {
     recipient: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true,
     },
@@ -35,19 +36,19 @@ const notificationSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: NOTIFICATION_STATUSES,
-      default: 'unread',
+      default: "unread",
       required: true,
     },
     appointment: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Appointment',
+      ref: "Appointment",
       required: false,
       index: true,
     },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Indexes for fast querying of a user's notifications sorted by newest first,
@@ -55,7 +56,7 @@ const notificationSchema = new mongoose.Schema(
 notificationSchema.index({ recipient: 1, createdAt: -1 });
 notificationSchema.index({ recipient: 1, status: 1 });
 
-const Notification = mongoose.model('Notification', notificationSchema);
+const Notification = mongoose.model("Notification", notificationSchema);
 
 module.exports = {
   Notification,
