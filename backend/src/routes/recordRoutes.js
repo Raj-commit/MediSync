@@ -1,0 +1,19 @@
+const express = require('express');
+const { authenticate } = require('../middleware/auth');
+const { requireRole } = require('../middleware/requireRole');
+const recordController = require('../controllers/recordController');
+
+const router = express.Router();
+
+// Order of checks (AGENTS.md section 3 rule 4):
+// 1. authenticate: checks valid JWT and loads req.user from DB
+// 2. requireRole: patients only (doctors and admins rejected with 403 FORBIDDEN)
+// 3. getOwnRecord: accesses only req.user's own medical record
+router.get(
+  '/me',
+  authenticate,
+  requireRole('patient'),
+  recordController.getOwnRecord
+);
+
+module.exports = router;
