@@ -201,8 +201,64 @@ async function getPrescriptions(user, query) {
   };
 }
 
+
+/**
+ * Retrieves the raw PDF bytes for a prescription.
+ * - Access allowed only to the patient who received it or the doctor who issued it.
+ * - Anti-enumeration: returns 404 NOT_FOUND if prescription does not exist OR is not owned.
+ * - On-demand recovery: if pdfData is not present, generates from Django now and caches it.
+ */
+async function getPrescriptionPdf(user, prescriptionId) {
+  if (user.role === 'admin') {
+    throw new AppError(403, 'FORBIDDEN', 'Admins cannot access prescriptions');
+  }
+
+  if (user.role !== 'patient' && user.role !== 'doctor') {
+    throw new AppError(403, 'FORBIDDEN', 'You do not have permission to view prescriptions');
+  }
+
+  const validId = validatePrescriptionId(prescriptionId);
+
+  const prescription = await Prescription.findById(validId)
+    .select('+pdfData')
+    .populate('patient', 'name')
+    .populate('doctor', 'name');
+
+  if (!prescription) {
+    throw new AppError(404, 'NOT_FOUND', 'Prescription not found');
+  }
+
+  const isOwnerPatient = user.role === 'patient' && prescription.patient._id.toString() === user.id.toString();
+  const isOwnerDoctor = user.role === 'doctor' && prescription.doctor._id.toString() === user.id.toString();
+
+  if (!isOwnerPatient && !isOwnerDoctor) {
+    throw new AppError(404, 'NOT_FOUND', 'Prescription not found');
+  }
+
+  // On-demand generation & caching if missing
+  if (!prescription.pdfData || prescription.pdfData.length === 0) {
+    const pdfBytes = await generatePrescriptionPdf({
+      prescriptionId: prescription._id.toString(),
+      patientName: prescription.patient?.name || 'Patient',
+      doctorName: prescription.doctor?.name || 'Doctor',
+      issuedDate: prescription.issuedDate,
+      items: prescription.items,
+    });
+
+    prescription.pdfData = pdfBytes;
+    prescription.pdfStatus = 'ready';
+    await prescription.save();
+  }
+
+  return {
+    id: prescription._id.toString(),
+    pdfData: prescription.pdfData,
+  };
+}
+
 module.exports = {
   createPrescription,
   getPrescriptions,
+  getPrescriptionPdf,
   serializePrescription,
 };

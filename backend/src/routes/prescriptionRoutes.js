@@ -33,4 +33,18 @@ router.post(
   prescriptionController.createPrescription
 );
 
+/**
+ * GET /api/v1/prescriptions/:id/pdf
+ * Protected: Patient who received or Doctor who issued downloads raw PDF.
+ * 1. authenticate: valid JWT
+ * 2. requireRole: 'patient', 'doctor' (admins get 403)
+ * 3. getPrescriptionPdf: ID validation, ownership check (404 anti-enumeration), stream PDF bytes
+ */
+router.get(
+  '/:id/pdf',
+  authenticate,
+  requireRole('patient', 'doctor'),
+  prescriptionController.getPrescriptionPdf
+);
+
 module.exports = router;

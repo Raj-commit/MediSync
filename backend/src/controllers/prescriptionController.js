@@ -29,7 +29,28 @@ async function getPrescriptions(req, res, next) {
   }
 }
 
+
+/**
+ * GET /api/v1/prescriptions/:id/pdf
+ * Serves the binary PDF for a prescription.
+ */
+async function getPrescriptionPdf(req, res, next) {
+  try {
+    const { id, pdfData } = await prescriptionService.getPrescriptionPdf(req.user, req.params.id);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="prescription_${id}.pdf"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    res.send(pdfData);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createPrescription,
   getPrescriptions,
+  getPrescriptionPdf,
 };
