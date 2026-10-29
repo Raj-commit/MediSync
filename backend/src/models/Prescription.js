@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const prescriptionItemSchema = new mongoose.Schema(
   {
@@ -21,27 +21,27 @@ const prescriptionItemSchema = new mongoose.Schema(
       maxlength: 500,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const prescriptionSchema = new mongoose.Schema(
   {
     appointment: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Appointment',
+      ref: "Appointment",
       required: true,
       unique: true,
       index: true,
     },
     patient: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true,
     },
     doctor: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true,
     },
@@ -56,7 +56,7 @@ const prescriptionSchema = new mongoose.Schema(
         validator: function (v) {
           return Array.isArray(v) && v.length >= 1 && v.length <= 50;
         },
-        message: 'Prescription must contain between 1 and 50 items',
+        message: "Prescription must contain between 1 and 50 items",
       },
     },
     pdfUrl: {
@@ -65,8 +65,8 @@ const prescriptionSchema = new mongoose.Schema(
     },
     pdfStatus: {
       type: String,
-      enum: ['ready', 'pending', 'failed'],
-      default: 'pending',
+      enum: ["ready", "pending", "failed"],
+      default: "pending",
       required: true,
     },
     pdfData: {
@@ -76,14 +76,13 @@ const prescriptionSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Enforce unique prescription per appointment (AGENTS.md section 5: 0..1 per appointment)
-prescriptionSchema.index({ appointment: 1 }, { unique: true });
 prescriptionSchema.index({ patient: 1, createdAt: -1 });
 prescriptionSchema.index({ doctor: 1, createdAt: -1 });
 
-const Prescription = mongoose.model('Prescription', prescriptionSchema);
+const Prescription = mongoose.model("Prescription", prescriptionSchema);
 
 module.exports = Prescription;

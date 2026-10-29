@@ -1,4 +1,4 @@
-const prescriptionService = require('../services/prescriptionService');
+const prescriptionService = require("../services/prescriptionService");
 
 /**
  * POST /api/v1/prescriptions
@@ -6,14 +6,16 @@ const prescriptionService = require('../services/prescriptionService');
  */
 async function createPrescription(req, res, next) {
   try {
-    const prescription = await prescriptionService.createPrescription(req.user, req.body);
-    res.setHeader('Cache-Control', 'no-store');
+    const prescription = await prescriptionService.createPrescription(
+      req.user,
+      req.body,
+    );
+    res.setHeader("Cache-Control", "no-store");
     res.status(201).json({ prescription });
   } catch (err) {
     next(err);
   }
 }
-
 
 /**
  * GET /api/v1/prescriptions
@@ -21,14 +23,16 @@ async function createPrescription(req, res, next) {
  */
 async function getPrescriptions(req, res, next) {
   try {
-    const result = await prescriptionService.getPrescriptions(req.user, req.query);
-    res.setHeader('Cache-Control', 'no-store');
+    const result = await prescriptionService.getPrescriptions(
+      req.user,
+      req.query,
+    );
+    res.setHeader("Cache-Control", "no-store");
     res.json(result);
   } catch (err) {
     next(err);
   }
 }
-
 
 /**
  * GET /api/v1/prescriptions/:id/pdf
@@ -36,12 +40,18 @@ async function getPrescriptions(req, res, next) {
  */
 async function getPrescriptionPdf(req, res, next) {
   try {
-    const { id, pdfData } = await prescriptionService.getPrescriptionPdf(req.user, req.params.id);
+    const { id, pdfData } = await prescriptionService.getPrescriptionPdf(
+      req.user,
+      req.params.id,
+    );
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="prescription_${id}.pdf"`);
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="prescription_${id}.pdf"`,
+    );
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
 
     res.send(pdfData);
   } catch (err) {

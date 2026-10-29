@@ -1,8 +1,8 @@
-const AppError = require('../utils/AppError');
+const AppError = require("../utils/AppError");
 
 const DJANGO_TIMEOUT_MS = 5000; // 5 seconds
 const MAX_PDF_BYTES = 2 * 1024 * 1024; // 2 MB
-const PDF_MAGIC_BYTES = '%PDF-';
+const PDF_MAGIC_BYTES = "%PDF-";
 
 /**
  * Calls the internal Django microservice to render a digital prescription PDF.
@@ -23,16 +23,30 @@ const PDF_MAGIC_BYTES = '%PDF-';
  * @param {Array<{medicine: string, dosage: string, instructions: string}>} params.items
  * @returns {Promise<Buffer>} The validated PDF binary Buffer
  */
-async function generatePrescriptionPdf({ prescriptionId, patientName, doctorName, issuedDate, items }) {
-  const baseUrl = (process.env.AI_SERVICE_URL || 'http://localhost:8000').replace(/\/+$/, '');
+async function generatePrescriptionPdf({
+  prescriptionId,
+  patientName,
+  doctorName,
+  issuedDate,
+  items,
+}) {
+  const baseUrl = (
+    process.env.AI_SERVICE_URL || "http://localhost:8000"
+  ).replace(/\/+$/, "");
   const serviceKey = process.env.AI_SERVICE_KEY;
 
-  if (!serviceKey || typeof serviceKey !== 'string' || serviceKey.trim() === '') {
-    console.error('PDF generation misconfigured: AI_SERVICE_KEY is missing or empty.');
+  if (
+    !serviceKey ||
+    typeof serviceKey !== "string" ||
+    serviceKey.trim() === ""
+  ) {
+    console.error(
+      "PDF generation misconfigured: AI_SERVICE_KEY is missing or empty.",
+    );
     throw new AppError(
       502,
-      'PDF_SERVICE_UNAVAILABLE',
-      'Prescription PDF service is temporarily unavailable. Please try again later.'
+      "PDF_SERVICE_UNAVAILABLE",
+      "Prescription PDF service is temporarily unavailable. Please try again later.",
     );
   }
 
@@ -40,10 +54,10 @@ async function generatePrescriptionPdf({ prescriptionId, patientName, doctorName
 
   try {
     const response = await fetch(endpoint, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'X-Service-Key': serviceKey,
+        "Content-Type": "application/json",
+        "X-Service-Key": serviceKey,
       },
       body: JSON.stringify({
         prescriptionId: String(prescriptionId),
@@ -63,18 +77,20 @@ async function generatePrescriptionPdf({ prescriptionId, patientName, doctorName
       console.error(`PDF service returned HTTP ${response.status}`);
       throw new AppError(
         502,
-        'PDF_SERVICE_UNAVAILABLE',
-        'Prescription PDF service is temporarily unavailable. Please try again later.'
+        "PDF_SERVICE_UNAVAILABLE",
+        "Prescription PDF service is temporarily unavailable. Please try again later.",
       );
     }
 
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.toLowerCase().includes('application/pdf')) {
-      console.error(`PDF service returned non-PDF content type: "${contentType}"`);
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.toLowerCase().includes("application/pdf")) {
+      console.error(
+        `PDF service returned non-PDF content type: "${contentType}"`,
+      );
       throw new AppError(
         502,
-        'PDF_SERVICE_UNAVAILABLE',
-        'Prescription PDF service is temporarily unavailable. Please try again later.'
+        "PDF_SERVICE_UNAVAILABLE",
+        "Prescription PDF service is temporarily unavailable. Please try again later.",
       );
     }
 
@@ -82,30 +98,34 @@ async function generatePrescriptionPdf({ prescriptionId, patientName, doctorName
     const pdfBuffer = Buffer.from(arrayBuffer);
 
     if (pdfBuffer.length === 0) {
-      console.error('PDF service returned empty body');
+      console.error("PDF service returned empty body");
       throw new AppError(
         502,
-        'PDF_SERVICE_UNAVAILABLE',
-        'Prescription PDF service is temporarily unavailable. Please try again later.'
+        "PDF_SERVICE_UNAVAILABLE",
+        "Prescription PDF service is temporarily unavailable. Please try again later.",
       );
     }
 
     if (pdfBuffer.length > MAX_PDF_BYTES) {
-      console.error(`PDF generated exceeds maximum allowed size (${pdfBuffer.length} bytes > 2 MB)`);
+      console.error(
+        `PDF generated exceeds maximum allowed size (${pdfBuffer.length} bytes > 2 MB)`,
+      );
       throw new AppError(
         502,
-        'PDF_SERVICE_UNAVAILABLE',
-        'Prescription PDF service is temporarily unavailable. Please try again later.'
+        "PDF_SERVICE_UNAVAILABLE",
+        "Prescription PDF service is temporarily unavailable. Please try again later.",
       );
     }
 
     // Verify magic bytes header
-    if (!pdfBuffer.subarray(0, 5).toString('ascii').startsWith(PDF_MAGIC_BYTES)) {
-      console.error('PDF service returned payload missing %PDF- header');
+    if (
+      !pdfBuffer.subarray(0, 5).toString("ascii").startsWith(PDF_MAGIC_BYTES)
+    ) {
+      console.error("PDF service returned payload missing %PDF- header");
       throw new AppError(
         502,
-        'PDF_SERVICE_UNAVAILABLE',
-        'Prescription PDF service is temporarily unavailable. Please try again later.'
+        "PDF_SERVICE_UNAVAILABLE",
+        "Prescription PDF service is temporarily unavailable. Please try again later.",
       );
     }
 
@@ -115,11 +135,11 @@ async function generatePrescriptionPdf({ prescriptionId, patientName, doctorName
       throw err;
     }
 
-    console.error('Django PDF generation request failed:', err.message || err);
+    console.error("Django PDF generation request failed:", err.message || err);
     throw new AppError(
       502,
-      'PDF_SERVICE_UNAVAILABLE',
-      'Prescription PDF service is temporarily unavailable. Please try again later.'
+      "PDF_SERVICE_UNAVAILABLE",
+      "Prescription PDF service is temporarily unavailable. Please try again later.",
     );
   }
 }

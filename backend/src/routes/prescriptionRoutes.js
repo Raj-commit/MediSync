@@ -1,7 +1,7 @@
-const express = require('express');
-const { authenticate } = require('../middleware/auth');
-const { requireRole } = require('../middleware/requireRole');
-const prescriptionController = require('../controllers/prescriptionController');
+const express = require("express");
+const { authenticate } = require("../middleware/auth");
+const { requireRole } = require("../middleware/requireRole");
+const prescriptionController = require("../controllers/prescriptionController");
 
 const router = express.Router();
 
@@ -13,10 +13,10 @@ const router = express.Router();
  * 3. getPrescriptions: query validation, role-scoped lookup, pagination
  */
 router.get(
-  '/',
+  "/",
   authenticate,
-  requireRole('patient', 'doctor'),
-  prescriptionController.getPrescriptions
+  requireRole("patient", "doctor"),
+  prescriptionController.getPrescriptions,
 );
 
 /**
@@ -27,10 +27,10 @@ router.get(
  * 3. createPrescription: business logic, ownership & status check, MongoDB save, PDF generation
  */
 router.post(
-  '/',
+  "/",
   authenticate,
-  requireRole('doctor'),
-  prescriptionController.createPrescription
+  requireRole("doctor"),
+  prescriptionController.createPrescription,
 );
 
 /**
@@ -41,10 +41,10 @@ router.post(
  * 3. getPrescriptionPdf: ID validation, ownership check (404 anti-enumeration), stream PDF bytes
  */
 router.get(
-  '/:id/pdf',
+  "/:id/pdf",
   authenticate,
-  requireRole('patient', 'doctor'),
-  prescriptionController.getPrescriptionPdf
+  requireRole("patient", "doctor"),
+  prescriptionController.getPrescriptionPdf,
 );
 
 module.exports = router;

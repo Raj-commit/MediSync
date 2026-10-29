@@ -1,14 +1,14 @@
-const mongoose = require('mongoose');
-const Prescription = require('../models/Prescription');
-const Appointment = require('../models/Appointment');
-const { generatePrescriptionPdf } = require('./pdfService');
-const { createNotification, templates } = require('./notificationService');
+const mongoose = require("mongoose");
+const Prescription = require("../models/Prescription");
+const Appointment = require("../models/Appointment");
+const { generatePrescriptionPdf } = require("./pdfService");
+const { createNotification, templates } = require("./notificationService");
 const {
   validatePrescriptionInput,
   validatePrescriptionId,
   validatePrescriptionsQuery,
-} = require('../utils/validatePrescription');
-const AppError = require('../utils/AppError');
+} = require("../utils/validatePrescription");
+const AppError = require("../utils/AppError");
 
 /**
  * Serializes a Prescription document for API output.
@@ -23,14 +23,20 @@ function serializePrescription(doc) {
 
   return {
     id: doc._id.toString(),
-    appointment: (appointment?._id || appointment || '').toString(),
+    appointment: (appointment?._id || appointment || "").toString(),
     patient: {
-      id: (patient?._id || patient || '').toString(),
-      name: patient && typeof patient === 'object' && patient.name ? patient.name : 'Patient',
+      id: (patient?._id || patient || "").toString(),
+      name:
+        patient && typeof patient === "object" && patient.name
+          ? patient.name
+          : "Patient",
     },
     doctor: {
-      id: (doctor?._id || doctor || '').toString(),
-      name: doctor && typeof doctor === 'object' && doctor.name ? doctor.name : 'Doctor',
+      id: (doctor?._id || doctor || "").toString(),
+      name:
+        doctor && typeof doctor === "object" && doctor.name
+          ? doctor.name
+          : "Doctor",
     },
     issuedDate: doc.issuedDate,
     items: doc.items.map((item) => ({
@@ -39,8 +45,11 @@ function serializePrescription(doc) {
       instructions: item.instructions,
     })),
     pdfUrl: doc.pdfUrl,
-    pdfStatus: doc.pdfStatus || 'pending',
-    createdAt: doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt,
+    pdfStatus: doc.pdfStatus || "pending",
+    createdAt:
+      doc.createdAt instanceof Date
+        ? doc.createdAt.toISOString()
+        : doc.createdAt,
   };
 }
 
@@ -59,38 +68,49 @@ function serializePrescription(doc) {
  * 9. Non-blocking patient notification with privacy-safe template.
  */
 async function createPrescription(user, body) {
-  if (user.role === 'admin') {
-    throw new AppError(403, 'FORBIDDEN', 'Admins cannot access prescriptions');
+  if (user.role === "admin") {
+    throw new AppError(403, "FORBIDDEN", "Admins cannot access prescriptions");
   }
 
-  if (user.role !== 'doctor') {
-    throw new AppError(403, 'FORBIDDEN', 'Only doctors can create prescriptions');
+  if (user.role !== "doctor") {
+    throw new AppError(
+      403,
+      "FORBIDDEN",
+      "Only doctors can create prescriptions",
+    );
   }
 
   const { appointmentId, items } = validatePrescriptionInput(body);
 
   const appointment = await Appointment.findById(appointmentId)
-    .populate('patient', 'name')
-    .populate('doctor', 'name');
+    .populate("patient", "name")
+    .populate("doctor", "name");
 
   // Anti-enumeration: 404 if appointment does not exist OR caller is not the appointment's doctor
-  if (!appointment || appointment.doctor._id.toString() !== user.id.toString()) {
-    throw new AppError(404, 'NOT_FOUND', 'Appointment not found');
+  if (
+    !appointment ||
+    appointment.doctor._id.toString() !== user.id.toString()
+  ) {
+    throw new AppError(404, "NOT_FOUND", "Appointment not found");
   }
 
   // Appointment must be completed
-  if (appointment.status !== 'completed') {
+  if (appointment.status !== "completed") {
     throw new AppError(
       400,
-      'VALIDATION_ERROR',
-      `Prescription can only be created for completed appointments (current status: "${appointment.status}")`
+      "VALIDATION_ERROR",
+      `Prescription can only be created for completed appointments (current status: "${appointment.status}")`,
     );
   }
 
   // Check if a prescription already exists for this appointment
   const existing = await Prescription.findOne({ appointment: appointment._id });
   if (existing) {
-    throw new AppError(409, 'PRESCRIPTION_EXISTS', 'A prescription has already been issued for this appointment');
+    throw new AppError(
+      409,
+      "PRESCRIPTION_EXISTS",
+      "A prescription has already been issued for this appointment",
+    );
   }
 
   const prescriptionId = new mongoose.Types.ObjectId();
@@ -108,11 +128,15 @@ async function createPrescription(user, body) {
       issuedDate,
       items,
       pdfUrl,
-      pdfStatus: 'pending',
+      pdfStatus: "pending",
     });
   } catch (err) {
     if (err && err.code === 11000) {
-      throw new AppError(409, 'PRESCRIPTION_EXISTS', 'A prescription has already been issued for this appointment');
+      throw new AppError(
+        409,
+        "PRESCRIPTION_EXISTS",
+        "A prescription has already been issued for this appointment",
+      );
     }
     throw err;
   }
@@ -121,40 +145,45 @@ async function createPrescription(user, body) {
   try {
     const pdfBytes = await generatePrescriptionPdf({
       prescriptionId: prescription._id.toString(),
-      patientName: appointment.patient?.name || 'Patient',
-      doctorName: appointment.doctor?.name || 'Doctor',
+      patientName: appointment.patient?.name || "Patient",
+      doctorName: appointment.doctor?.name || "Doctor",
       issuedDate,
       items,
     });
 
     prescription.pdfData = pdfBytes;
-    prescription.pdfStatus = 'ready';
+    prescription.pdfStatus = "ready";
     await prescription.save();
   } catch (pdfErr) {
     // Non-blocking: Prescription remains saved safely in MongoDB.
     // GET /prescriptions/:id/pdf will generate it on-demand when requested.
-    console.warn('Initial PDF generation deferred (will retry on download):', pdfErr.message);
+    console.warn(
+      "Initial PDF generation deferred (will retry on download):",
+      pdfErr.message,
+    );
   }
 
   // Step 3: Notify the patient (non-blocking)
   try {
     await createNotification({
       recipient: appointment.patient._id,
-      type: 'prescription_created',
+      type: "prescription_created",
       message: templates.prescriptionCreated(appointment.doctor?.name),
       appointment: appointment._id,
     });
   } catch (notifErr) {
-    console.error('Failed to send prescription notification:', notifErr.message);
+    console.error(
+      "Failed to send prescription notification:",
+      notifErr.message,
+    );
   }
 
   // Populate references for clean serialization
-  await prescription.populate('patient', 'name');
-  await prescription.populate('doctor', 'name');
+  await prescription.populate("patient", "name");
+  await prescription.populate("doctor", "name");
 
   return serializePrescription(prescription);
 }
-
 
 /**
  * Lists prescriptions for the authenticated user, ordered newest first.
@@ -164,17 +193,22 @@ async function createPrescription(user, body) {
  * - Pagination: page (default 1), limit (default 10, max 50).
  */
 async function getPrescriptions(user, query) {
-  if (user.role === 'admin') {
-    throw new AppError(403, 'FORBIDDEN', 'Admins cannot access prescriptions');
+  if (user.role === "admin") {
+    throw new AppError(403, "FORBIDDEN", "Admins cannot access prescriptions");
   }
 
-  if (user.role !== 'patient' && user.role !== 'doctor') {
-    throw new AppError(403, 'FORBIDDEN', 'You do not have permission to view prescriptions');
+  if (user.role !== "patient" && user.role !== "doctor") {
+    throw new AppError(
+      403,
+      "FORBIDDEN",
+      "You do not have permission to view prescriptions",
+    );
   }
 
   const { page, limit, appointmentId } = validatePrescriptionsQuery(query);
 
-  const filter = user.role === 'patient' ? { patient: user.id } : { doctor: user.id };
+  const filter =
+    user.role === "patient" ? { patient: user.id } : { doctor: user.id };
   if (appointmentId) {
     filter.appointment = appointmentId;
   }
@@ -187,8 +221,8 @@ async function getPrescriptions(user, query) {
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
-    .populate('patient', 'name')
-    .populate('doctor', 'name');
+    .populate("patient", "name")
+    .populate("doctor", "name");
 
   return {
     prescriptions: docs.map(serializePrescription),
@@ -201,7 +235,6 @@ async function getPrescriptions(user, query) {
   };
 }
 
-
 /**
  * Retrieves the raw PDF bytes for a prescription.
  * - Access allowed only to the patient who received it or the doctor who issued it.
@@ -209,44 +242,52 @@ async function getPrescriptions(user, query) {
  * - On-demand recovery: if pdfData is not present, generates from Django now and caches it.
  */
 async function getPrescriptionPdf(user, prescriptionId) {
-  if (user.role === 'admin') {
-    throw new AppError(403, 'FORBIDDEN', 'Admins cannot access prescriptions');
+  if (user.role === "admin") {
+    throw new AppError(403, "FORBIDDEN", "Admins cannot access prescriptions");
   }
 
-  if (user.role !== 'patient' && user.role !== 'doctor') {
-    throw new AppError(403, 'FORBIDDEN', 'You do not have permission to view prescriptions');
+  if (user.role !== "patient" && user.role !== "doctor") {
+    throw new AppError(
+      403,
+      "FORBIDDEN",
+      "You do not have permission to view prescriptions",
+    );
   }
 
   const validId = validatePrescriptionId(prescriptionId);
 
   const prescription = await Prescription.findById(validId)
-    .select('+pdfData')
-    .populate('patient', 'name')
-    .populate('doctor', 'name');
+    .select("+pdfData")
+    .populate("patient", "name")
+    .populate("doctor", "name");
 
   if (!prescription) {
-    throw new AppError(404, 'NOT_FOUND', 'Prescription not found');
+    throw new AppError(404, "NOT_FOUND", "Prescription not found");
   }
 
-  const isOwnerPatient = user.role === 'patient' && prescription.patient._id.toString() === user.id.toString();
-  const isOwnerDoctor = user.role === 'doctor' && prescription.doctor._id.toString() === user.id.toString();
+  const isOwnerPatient =
+    user.role === "patient" &&
+    prescription.patient._id.toString() === user.id.toString();
+  const isOwnerDoctor =
+    user.role === "doctor" &&
+    prescription.doctor._id.toString() === user.id.toString();
 
   if (!isOwnerPatient && !isOwnerDoctor) {
-    throw new AppError(404, 'NOT_FOUND', 'Prescription not found');
+    throw new AppError(404, "NOT_FOUND", "Prescription not found");
   }
 
   // On-demand generation & caching if missing
   if (!prescription.pdfData || prescription.pdfData.length === 0) {
     const pdfBytes = await generatePrescriptionPdf({
       prescriptionId: prescription._id.toString(),
-      patientName: prescription.patient?.name || 'Patient',
-      doctorName: prescription.doctor?.name || 'Doctor',
+      patientName: prescription.patient?.name || "Patient",
+      doctorName: prescription.doctor?.name || "Doctor",
       issuedDate: prescription.issuedDate,
       items: prescription.items,
     });
 
     prescription.pdfData = pdfBytes;
-    prescription.pdfStatus = 'ready';
+    prescription.pdfStatus = "ready";
     await prescription.save();
   }
 
