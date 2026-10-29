@@ -155,7 +155,54 @@ async function createPrescription(user, body) {
   return serializePrescription(prescription);
 }
 
+
+/**
+ * Lists prescriptions for the authenticated user, ordered newest first.
+ * - Patient: reads strictly their own prescriptions.
+ * - Doctor: reads strictly the prescriptions they issued.
+ * - Supports ?appointmentId=... lookup for doctor UI check.
+ * - Pagination: page (default 1), limit (default 10, max 50).
+ */
+async function getPrescriptions(user, query) {
+  if (user.role === 'admin') {
+    throw new AppError(403, 'FORBIDDEN', 'Admins cannot access prescriptions');
+  }
+
+  if (user.role !== 'patient' && user.role !== 'doctor') {
+    throw new AppError(403, 'FORBIDDEN', 'You do not have permission to view prescriptions');
+  }
+
+  const { page, limit, appointmentId } = validatePrescriptionsQuery(query);
+
+  const filter = user.role === 'patient' ? { patient: user.id } : { doctor: user.id };
+  if (appointmentId) {
+    filter.appointment = appointmentId;
+  }
+
+  const total = await Prescription.countDocuments(filter);
+  const totalPages = Math.ceil(total / limit) || 0;
+  const skip = (page - 1) * limit;
+
+  const docs = await Prescription.find(filter)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate('patient', 'name')
+    .populate('doctor', 'name');
+
+  return {
+    prescriptions: docs.map(serializePrescription),
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+    },
+  };
+}
+
 module.exports = {
   createPrescription,
+  getPrescriptions,
   serializePrescription,
 };

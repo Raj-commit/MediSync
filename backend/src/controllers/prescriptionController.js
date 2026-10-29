@@ -14,6 +14,22 @@ async function createPrescription(req, res, next) {
   }
 }
 
+
+/**
+ * GET /api/v1/prescriptions
+ * Lists prescriptions for the logged-in patient or doctor.
+ */
+async function getPrescriptions(req, res, next) {
+  try {
+    const result = await prescriptionService.getPrescriptions(req.user, req.query);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createPrescription,
+  getPrescriptions,
 };
