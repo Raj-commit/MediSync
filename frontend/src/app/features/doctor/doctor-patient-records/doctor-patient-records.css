@@ -105,6 +105,87 @@
   margin: 0;
 }
 
+/* Add Entry Card */
+.add-entry-card {
+  max-width: 100%;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  margin-bottom: 2rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+}
+
+.add-entry-card h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.35rem;
+  color: #0f172a;
+}
+
+/* Immutability notice */
+.immutability-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1.15rem;
+  margin-bottom: 1.5rem;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  color: #92400e;
+}
+
+.notice-icon {
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+.immutability-notice p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Success Box */
+.success-box {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 0.5rem;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.success {
+  margin: 0;
+  color: #065f46;
+  font-weight: 500;
+}
+
+.field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.35rem;
+}
+
+.counter {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.counter-limit {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
+
 /* Section Header */
 .section-header {
   margin: 2rem 0 1rem;
@@ -241,6 +322,91 @@
   background: #e2e8f0;
 }
 
+/* Accessible Confirmation Modal Dialog */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-dialog {
+  width: 100%;
+  max-width: 34rem;
+  background: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  padding: 1.75rem;
+}
+
+.modal-dialog h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.35rem;
+  color: #0f172a;
+}
+
+.modal-warning {
+  margin: 0 0 1.25rem;
+  color: #334155;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.confirmation-summary {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.summary-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summary-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.summary-value {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.summary-notes-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 10rem;
+  overflow-y: auto;
+  line-height: 1.5;
+  padding: 0.5rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.35rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 640px) {
   .patient-banner {
     flex-direction: column;
@@ -254,5 +420,13 @@
   .record-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions .button {
+    width: 100%;
   }
 }
