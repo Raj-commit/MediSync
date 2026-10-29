@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const { User } = require('../models/User');
 const { verifyToken } = require('../utils/token');
 const { registerChatHandlers } = require('./chat');
+const { registerVideoHandlers } = require('./video');
 
 let io = null;
 
@@ -63,6 +64,7 @@ function initSocket(server) {
 
     // Register consultation chat handlers (join_chat, send_message)
     registerChatHandlers(io, socket);
+    registerVideoHandlers(io, socket);
 
     socket.on('disconnect', () => {
       // Socket disconnected
