@@ -9,6 +9,7 @@ const NOTIFICATION_TYPES = [
   'appointment_rescheduled',
   'appointment_completed',
   'appointment_reminder',
+  'prescription_created',
 ];
 
 const NOTIFICATION_STATUSES = ['unread', 'read'];

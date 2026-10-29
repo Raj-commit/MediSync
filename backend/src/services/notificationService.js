@@ -28,6 +28,8 @@ const templates = {
     `You have an upcoming appointment with Dr. ${doctorName ? doctorName.trim() : 'your doctor'}.`,
   appointmentReminderDoctor: (patientName) =>
     `You have an upcoming appointment with ${patientName ? patientName.trim() : 'a patient'}.`,
+  prescriptionCreated: (doctorName) =>
+    `Dr. ${doctorName ? doctorName.trim() : 'your doctor'} has issued a digital prescription for your appointment.`,
 };
 
 /**
