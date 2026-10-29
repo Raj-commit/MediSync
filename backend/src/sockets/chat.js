@@ -1,5 +1,77 @@
+const { User } = require('../models/User');
 const chatService = require('../services/chatService');
 const { validateAppointmentId } = require('../utils/validateChat');
+const AppError = require('../utils/AppError');
+
+const FLOOD_LIMIT = 5;
+const FLOOD_WINDOW_MS = 3000;
+const userMessageHistory = new Map(); // userId -> number[]
+
+/**
+ * Checks in-memory message rate limit per user.
+ * Allows at most FLOOD_LIMIT messages within FLOOD_WINDOW_MS.
+ *
+ * @param {string} userId
+ * @returns {boolean} True if allowed, false if rate limited
+ */
+function checkFloodLimit(userId) {
+  const now = Date.now();
+  const history = userMessageHistory.get(userId) || [];
+  const recent = history.filter((time) => now - time < FLOOD_WINDOW_MS);
+
+  if (recent.length >= FLOOD_LIMIT) {
+    userMessageHistory.set(userId, recent);
+    return false;
+  }
+
+  recent.push(now);
+  userMessageHistory.set(userId, recent);
+
+  // Periodic pruning if map grows large to prevent unbounded memory usage
+  if (userMessageHistory.size > 1000) {
+    for (const [id, timestamps] of userMessageHistory.entries()) {
+      const active = timestamps.filter((t) => now - t < FLOOD_WINDOW_MS);
+      if (active.length === 0) {
+        userMessageHistory.delete(id);
+      } else {
+        userMessageHistory.set(id, active);
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Resets flood limit tracking (useful for automated testing).
+ */
+function _resetFloodLimits() {
+  userMessageHistory.clear();
+}
+
+/**
+ * Re-verifies that the user still exists and remains active in the database.
+ * Disconnects socket if the account has been disabled.
+ *
+ * @param {import('socket.io').Socket} socket
+ * @returns {Promise<object>} Fresh user document
+ */
+async function verifyActiveUser(socket) {
+  const userId = socket.user?._id || socket.user?.id;
+  if (!userId) {
+    socket.disconnect(true);
+    throw new AppError(401, 'UNAUTHORIZED', 'Please log in to continue');
+  }
+
+  const user = await User.findById(userId);
+  if (!user || !user.isActive) {
+    socket.disconnect(true);
+    throw new AppError(403, 'ACCOUNT_DISABLED', 'This account has been disabled');
+  }
+
+  socket.user = user;
+  return user;
+}
 
 /**
  * Safely executes a socket acknowledgement callback if provided.
@@ -25,6 +97,9 @@ function registerChatHandlers(io, socket) {
   // Client requests to join the private room for a specific appointment.
   socket.on('join_chat', async (payload, callback) => {
     try {
+      // 1. Verify user is still active in the database
+      const activeUser = await verifyActiveUser(socket);
+
       const data =
         payload !== null && typeof payload === 'object' && !Array.isArray(payload)
           ? payload
@@ -34,8 +109,8 @@ function registerChatHandlers(io, socket) {
 
       const appointmentId = validateAppointmentId(data.appointmentId);
 
-      // Verify that socket.user is a participant and the appointment status permits chat
-      await chatService.verifyChatAccess(appointmentId, socket.user, { checkSend: false });
+      // 2. Verify that activeUser is a participant and appointment status permits chat
+      await chatService.verifyChatAccess(appointmentId, activeUser, { checkSend: false });
 
       const roomName = `appointment:${appointmentId}`;
       socket.join(roomName);
@@ -61,6 +136,16 @@ function registerChatHandlers(io, socket) {
   // Client sends a consultation chat message.
   socket.on('send_message', async (payload, callback) => {
     try {
+      const userId = (socket.user?._id || socket.user?.id)?.toString();
+
+      // 1. Flooding protection check (in-memory rate limiting: max 5 messages per 3s)
+      if (!userId || !checkFloodLimit(userId)) {
+        throw new AppError(429, 'RATE_LIMITED', 'Too many messages. Please slow down.');
+      }
+
+      // 2. Re-verify user is still active in the database (admin might have disabled them)
+      const activeUser = await verifyActiveUser(socket);
+
       const data =
         payload !== null && typeof payload === 'object' && !Array.isArray(payload)
           ? payload
@@ -68,16 +153,16 @@ function registerChatHandlers(io, socket) {
 
       const appointmentId = validateAppointmentId(data.appointmentId);
 
-      // Persist the message with atomic sequence assignment
+      // 3. Persist the message with atomic sequence assignment and status verification
       const savedMessage = await chatService.createMessage({
         appointmentId,
-        user: socket.user,
+        user: activeUser,
         content: data.content,
       });
 
       const roomName = `appointment:${appointmentId}`;
 
-      // Broadcast the new message to everyone in the appointment's room (including sender)
+      // 4. Broadcast the new message to everyone in the appointment's room (including sender)
       io.to(roomName).emit('new_message', {
         appointmentId,
         message: savedMessage,
@@ -102,5 +187,9 @@ function registerChatHandlers(io, socket) {
 }
 
 module.exports = {
+  FLOOD_LIMIT,
+  FLOOD_WINDOW_MS,
+  checkFloodLimit,
+  _resetFloodLimits,
   registerChatHandlers,
 };
