@@ -1,0 +1,96 @@
+<main class="container">
+  <div class="page-header">
+    <a routerLink="/patient" class="back-link">&larr; Back to Dashboard</a>
+    <h1>My Medical Records</h1>
+    <p class="subtitle">Diagnoses and clinical notes recorded by your attending doctors.</p>
+  </div>
+
+  @if (loading()) {
+    <div class="card state-box" aria-live="polite">
+      <p>Loading medical records...</p>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="card error-box" role="alert">
+      <p class="error">{{ error() }}</p>
+      <button
+        type="button"
+        class="button button-secondary"
+        (click)="loadRecord(pagination().page)"
+      >
+        Try again
+      </button>
+    </div>
+  }
+
+  @if (!loading() && !error()) {
+    @if (entries().length === 0) {
+      <div class="card empty-box">
+        <h2>No entries yet</h2>
+        <p>You have no medical record entries recorded by a doctor yet.</p>
+        <div class="empty-actions">
+          <a routerLink="/patient/doctors" class="button">Find a doctor</a>
+        </div>
+      </div>
+    } @else {
+      <div class="results-header">
+        <p class="results-count">
+          Showing {{ entries().length }} of {{ pagination().total }}
+          {{ pagination().total === 1 ? 'entry' : 'entries' }}
+        </p>
+      </div>
+
+      <ul class="records-list" aria-label="Medical record entries">
+        @for (entry of entries(); track entry.id) {
+          <li class="card record-card">
+            <div class="record-header">
+              <h2 class="diagnosis-title">{{ entry.diagnosis }}</h2>
+              <span class="record-date">{{ formatDateTime(entry.updatedAt) }}</span>
+            </div>
+
+            <div class="doctor-badge">
+              <span class="doctor-label">Recorded by:</span>
+              <strong class="doctor-name">
+                {{ entry.updatedBy?.name ? 'Dr. ' + entry.updatedBy.name : 'Attending Doctor' }}
+              </strong>
+            </div>
+
+            <div class="record-body">
+              <h3 class="notes-heading">Clinical Notes</h3>
+              <p class="notes-content">{{ entry.notes }}</p>
+            </div>
+          </li>
+        }
+      </ul>
+
+      @if (pagination().totalPages > 1) {
+        <nav class="pagination-nav" aria-label="Medical records pagination">
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page <= 1 || loading()"
+            (click)="onPageChange(pagination().page - 1)"
+            aria-label="Previous page"
+          >
+            &larr; Previous
+          </button>
+
+          <span class="page-indicator" aria-current="page">
+            Page {{ pagination().page }} of {{ pagination().totalPages }}
+          </span>
+
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page >= pagination().totalPages || loading()"
+            (click)="onPageChange(pagination().page + 1)"
+            aria-label="Next page"
+          >
+            Next &rarr;
+          </button>
+        </nav>
+      }
+    }
+  }
+</main>
