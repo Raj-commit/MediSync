@@ -101,6 +101,12 @@ export const routes: Routes = [
     title: 'Consultation chat | MediSync',
   },
   {
+    path: 'appointments/:id/video',
+    canActivate: [roleGuard('patient', 'doctor')],
+    loadComponent: () => import('./features/video/video').then((m) => m.VideoPage),
+    title: 'Video consultation | MediSync',
+  },
+  {
     path: 'admin',
     canActivate: [roleGuard('admin')],
     loadComponent: () =>

@@ -1,0 +1,342 @@
+<!-- frontend/src/app/features/video/video.html -->
+<main class="container video-page" [class.in-call-page]="hasJoinedCall()">
+  <!-- Screen reader live region for polite status updates -->
+  <div class="sr-only" aria-live="polite" aria-atomic="true">
+    {{ liveAnnouncement() }}
+  </div>
+
+  <!-- 1. Loading State -->
+  @if (loadingStatus()) {
+    <div class="card status-card text-center" aria-busy="true">
+      <div class="spinner" aria-hidden="true"></div>
+      <h1>Checking consultation status...</h1>
+      <p class="hint">Verifying appointment details and secure video permissions.</p>
+    </div>
+  }
+
+  <!-- 2. API Status Error (404, 403, Network Error) -->
+  @else if (statusError()) {
+    <div class="card status-card text-center" role="alert">
+      <h1 class="error-title">
+        @if (statusErrorCode() === 'NOT_FOUND') {
+          Appointment Not Found
+        } @else if (statusErrorCode() === 'FORBIDDEN') {
+          Access Denied
+        } @else {
+          Cannot Access Video Call
+        }
+      </h1>
+      <p class="error-message">{{ statusError() }}</p>
+      <div class="action-row">
+        <a [routerLink]="appointmentsPath()" class="button"> Back to appointments </a>
+      </div>
+    </div>
+  }
+
+  <!-- 3. Cannot Join State (e.g. Too early, too late, completed, not confirmed) -->
+  @else if (statusData() && !statusData()!.canJoin) {
+    <div class="card status-card text-center" role="alert">
+      <h1>Consultation Not Available</h1>
+      <p class="reason-banner">
+        {{ statusData()!.reason || 'You cannot join this video consultation at this time.' }}
+      </p>
+
+      <div class="appointment-details">
+        <p>
+          <strong>With:</strong> {{ statusData()!.appointment.otherParty.name }} ({{
+            statusData()!.appointment.otherParty.role
+          }})
+        </p>
+        <p>
+          <strong>Scheduled Time:</strong>
+          {{ formatTime(statusData()!.appointment.dateTime) }}
+        </p>
+      </div>
+
+      <div class="action-row">
+        <a [routerLink]="appointmentsPath()" class="button"> Back to appointments </a>
+      </div>
+    </div>
+  }
+
+  <!-- 4. Insecure Context Warning (Requires HTTPS or localhost) -->
+  @else if (isInsecureContext()) {
+    <div class="card status-card text-center" role="alert">
+      <h1 class="error-title">Secure Connection Required</h1>
+      <p class="error-message">
+        Camera and microphone access is restricted to secure connections (HTTPS) or localhost.
+        Please open MediSync using <code>http://localhost:4200</code> or over HTTPS.
+      </p>
+      <div class="action-row">
+        <a [routerLink]="appointmentsPath()" class="button"> Back to appointments </a>
+      </div>
+    </div>
+  }
+
+  <!-- 5. Browser Media Device Unsupported -->
+  @else if (isUnsupportedBrowser()) {
+    <div class="card status-card text-center" role="alert">
+      <h1 class="error-title">Browser Unsupported</h1>
+      <p class="error-message">
+        Your browser does not support WebRTC camera and microphone access. Please use an up-to-date
+        version of Google Chrome, Microsoft Edge, Mozilla Firefox, or Apple Safari.
+      </p>
+      <div class="action-row">
+        <a [routerLink]="appointmentsPath()" class="button"> Back to appointments </a>
+      </div>
+    </div>
+  }
+
+  <!-- 6. Hardware Access / Permission Error -->
+  @else if (deviceError()) {
+    <div class="card status-card text-center" role="alert">
+      <h1 class="error-title">Camera or Microphone Problem</h1>
+      <p class="error-message">{{ deviceError() }}</p>
+      <div class="action-row">
+        <button type="button" class="button" (click)="initializeMediaDevices()">Try again</button>
+        <a [routerLink]="appointmentsPath()" class="button button-outline">
+          Back to appointments
+        </a>
+      </div>
+    </div>
+  }
+
+  <!-- 7. Pre-Call Setup & Camera Preview Screen (Choice b) -->
+  @else if (!hasJoinedCall()) {
+    <div class="preview-container card">
+      <header class="preview-header text-center">
+        <h1>Ready to join your consultation?</h1>
+        @if (statusData()?.appointment; as apt) {
+          <p class="consultation-meta">
+            Consultation with <strong>{{ apt.otherParty.name }}</strong>
+            &bull;
+            <span>{{ formatTime(apt.dateTime) }}</span>
+          </p>
+        }
+      </header>
+
+      <!-- Video Preview Window -->
+      <div class="video-preview-wrapper">
+        @if (requestingDevices()) {
+          <div class="preview-placeholder" aria-busy="true">
+            <div class="spinner" aria-hidden="true"></div>
+            <p>Starting camera preview...</p>
+          </div>
+        } @else if (isVideoOff()) {
+          <div class="preview-placeholder camera-off" aria-label="Camera is turned off">
+            <div class="avatar-circle" aria-hidden="true">
+              {{ role() === 'doctor' ? 'Dr' : 'Pt' }}
+            </div>
+            <p>Your camera is turned off</p>
+          </div>
+        } @else {
+          <video
+            #localPreview
+            class="preview-video"
+            playsinline
+            muted
+            autoplay
+            aria-label="Your local camera preview"
+          ></video>
+        }
+
+        <!-- Mic Muted Indicator Badge on Preview -->
+        @if (isAudioMuted()) {
+          <span class="preview-badge mute-badge" role="status"> Microphone muted </span>
+        }
+      </div>
+
+      <!-- Device Quick Controls -->
+      <div class="preview-controls" role="toolbar" aria-label="Pre-call media controls">
+        <button
+          type="button"
+          class="control-button"
+          [class.active-mute]="isAudioMuted()"
+          [attr.aria-pressed]="isAudioMuted()"
+          [disabled]="requestingDevices() || !localStream()"
+          (click)="toggleAudio()"
+        >
+          <span class="control-label">{{
+            isAudioMuted() ? 'Unmute microphone' : 'Mute microphone'
+          }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="control-button"
+          [class.active-mute]="isVideoOff()"
+          [attr.aria-pressed]="isVideoOff()"
+          [disabled]="requestingDevices() || !localStream()"
+          (click)="toggleVideo()"
+        >
+          <span class="control-label">{{
+            isVideoOff() ? 'Turn camera on' : 'Turn camera off'
+          }}</span>
+        </button>
+      </div>
+
+      <!-- Main Action Buttons -->
+      <div class="preview-actions">
+        <button
+          type="button"
+          class="button button-primary button-lg"
+          [disabled]="requestingDevices() || !localStream()"
+          (click)="joinCall()"
+        >
+          Join call
+        </button>
+        <a [routerLink]="appointmentsPath()" class="button button-outline"> Cancel </a>
+      </div>
+    </div>
+  }
+
+  <!-- 8. Call Ended State -->
+  @else if (callState() === 'ended') {
+    <div class="card status-card text-center" role="status">
+      <h1>Consultation Ended</h1>
+      <p class="error-message">You have left the video consultation room.</p>
+      <div class="action-row">
+        <a [routerLink]="appointmentsPath()" class="button button-primary">
+          Return to appointments
+        </a>
+      </div>
+    </div>
+  }
+
+  <!-- 9. Connection Failed State -->
+  @else if (callState() === 'failed') {
+    <div class="card status-card text-center" role="alert">
+      <h1 class="error-title">Connection Problem</h1>
+      <p class="error-message">
+        {{ callErrorMessage() || 'Failed to connect to the video call.' }}
+      </p>
+      <div class="action-row">
+        <button type="button" class="button button-primary" (click)="joinCall()">
+          Try rejoining
+        </button>
+        <a [routerLink]="appointmentsPath()" class="button button-outline">
+          Back to appointments
+        </a>
+      </div>
+    </div>
+  }
+
+  <!-- 10. Live Consultation Screen -->
+  @else {
+    <div class="live-consultation-stage">
+      <!-- Call Header Bar -->
+      <header class="call-header">
+        <div class="call-participant-info">
+          @if (statusData()?.appointment; as apt) {
+            <span class="call-title"
+              >Consultation with <strong>{{ apt.otherParty.name }}</strong></span
+            >
+          }
+        </div>
+
+        <!-- Connection State Indicator Pill -->
+        <div class="status-pill-wrapper">
+          @if (callState() === 'connected') {
+            <span class="status-pill pill-connected" role="status">Connected</span>
+          } @else if (callState() === 'waiting') {
+            <span class="status-pill pill-waiting" role="status">Waiting for other person...</span>
+          } @else if (callState() === 'reconnecting') {
+            <span class="status-pill pill-reconnecting" role="status">Reconnecting...</span>
+          } @else if (callState() === 'peer_left') {
+            <span class="status-pill pill-waiting" role="status">Participant left</span>
+          } @else {
+            <span class="status-pill pill-connecting" role="status">Connecting...</span>
+          }
+        </div>
+      </header>
+
+      <!-- Video Area -->
+      <div class="call-video-grid">
+        <!-- Remote Video (Large) -->
+        <div class="remote-video-container">
+          @if (callState() === 'waiting') {
+            <div class="waiting-card" role="status">
+              <div class="spinner" aria-hidden="true"></div>
+              <h2>Waiting for the other participant to join...</h2>
+              <p>The call will connect automatically as soon as they arrive.</p>
+            </div>
+          } @else if (callState() === 'peer_left') {
+            <div class="waiting-card" role="status">
+              <div class="spinner" aria-hidden="true"></div>
+              <h2>The other participant left the room</h2>
+              <p>Waiting for them to reconnect...</p>
+            </div>
+          } @else if (callState() === 'connecting') {
+            <div class="waiting-card" role="status">
+              <div class="spinner" aria-hidden="true"></div>
+              <h2>Connecting video stream...</h2>
+              <p>Negotiating peer connection.</p>
+            </div>
+          } @else {
+            <video
+              #remoteVideo
+              class="remote-video"
+              playsinline
+              autoplay
+              aria-label="Remote participant video"
+            ></video>
+          }
+
+          <!-- Local Picture-in-Picture Video (Small, in corner) -->
+          <div class="local-pip-container" aria-label="Your video preview">
+            @if (isVideoOff()) {
+              <div class="pip-camera-off">
+                <span class="pip-avatar">{{ role() === 'doctor' ? 'Dr' : 'Pt' }}</span>
+              </div>
+            } @else {
+              <video
+                #localPipVideo
+                class="local-pip-video"
+                playsinline
+                muted
+                autoplay
+                aria-label="Your camera"
+              ></video>
+            }
+
+            @if (isAudioMuted()) {
+              <span class="pip-mute-badge" aria-label="Microphone is muted">Muted</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- In-Call Floating Toolbar -->
+      <footer class="call-toolbar" role="toolbar" aria-label="In-call controls">
+        <!-- Mute/Unmute Mic -->
+        <button
+          type="button"
+          class="toolbar-button"
+          [class.button-muted]="isAudioMuted()"
+          [attr.aria-pressed]="isAudioMuted()"
+          (click)="toggleAudio()"
+        >
+          <span class="button-label">{{ isAudioMuted() ? 'Unmute mic' : 'Mute mic' }}</span>
+        </button>
+
+        <!-- Turn Camera On/Off -->
+        <button
+          type="button"
+          class="toolbar-button"
+          [class.button-muted]="isVideoOff()"
+          [attr.aria-pressed]="isVideoOff()"
+          (click)="toggleVideo()"
+        >
+          <span class="button-label">{{
+            isVideoOff() ? 'Turn camera on' : 'Turn camera off'
+          }}</span>
+        </button>
+
+        <!-- Leave Call -->
+        <button type="button" class="toolbar-button button-leave" (click)="leaveCall()">
+          <span class="button-label">Leave call</span>
+        </button>
+      </footer>
+    </div>
+  }
+</main>
