@@ -2,14 +2,14 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-29  by: Uday Raj
+Last updated: 2026-10-29  by: Alis
 
 ## Current work
 
-- Branch: `feature/video-consultation-api`
-- Feature: video consultation (API done, backend)
-- Last thing finished: FR-11 (Video Consultation, UC-07) backend implementation: VideoSession model and lifecycle service, ICE server config (`STUN_SERVERS`, `TURN_SERVERS`), REST endpoint `GET /api/v1/appointments/:id/video`, Socket.IO video signaling handlers (`join_video`, `relay_offer`, `relay_answer`, `relay_candidate`, `leave_video`), waiting room and initiator management, 2-participant room limit (`ROOM_FULL`), second-tab guard (`ALREADY_CONNECTED`), WebRTC payload size limits (64 KB SDP, 2 KB candidate), signaling flood protection (30 events per 3s), live account deactivation check, appointment status change termination, and 23 integration tests passing in Jest (263/263 total tests passing)
-- Next step: Open PR for feature/video-consultation-api into main; start feature/video-consultation-ui
+- Branch: `feature/video-consultation-ui`
+- Feature: video consultation (UI done, frontend)
+- Last thing finished: FR-11 (Video Consultation, UC-07) frontend implementation: Shared route `/appointments/:id/video` guarded by `roleGuard('patient', 'doctor')`, pre-call hardware verification (camera/mic permissions, secure context, appointment call window), preview screen with audio/video toggles, explicit "Join call" entry, Socket.IO WebRTC signaling orchestration (`join_video`, `relay_offer`, `relay_answer`, `relay_candidate`, `peer_joined`, `peer_left`, `call_ended`), early ICE candidate buffer and flush, remote video presentation with PiP local stream, responsive floating toolbar (mute, camera toggle, leave call), automatic socket reconnection recovery, "Join video" buttons on patient and doctor appointment cards, full track/connection cleanup on unload/destroy, and 24 Vitest unit tests (221/221 total tests passing)
+- Next step: Open PR for feature/video-consultation-ui into main; begin FR-13 / medical records or next feature
 - Blockers or open questions: none
 
 ## Feature status
@@ -26,7 +26,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 6 | appointment-management | done | done | Uday Raj (API), Riyank(UI) | Merged in PR #23 (API) and PR #26 (UI). UI at /patient/appointments and /doctor/appointments with cancel, reschedule, accept, reject, complete, full Vitest coverage |
 | 7 | notifications | done | done | Hitanshu (API), Riyank (UI) | API merged. UI at /notifications with filters, pagination, mark as read, appointment links, navbar bell with badge, visibility-aware polling, full Vitest coverage |
 | 8 | chat | done | done | Alis (API), Hitman0137 (UI) | FR-12 (UC-08). Shared /appointments/:id/chat route, Socket.IO live delivery, history pagination, cards integration, 180 tests passing |
-| 9 | video-consultation | done | not started | Uday Raj (API) | FR-11 (UC-07) WebRTC signaling over Socket.IO, VideoSession lifecycle, ICE server config, payload limits, flood protection, 23 integration tests |
+| 9 | video-consultation | done | done | Uday Raj (API), Alis (UI) | FR-11 (UC-07) WebRTC signaling over Socket.IO, VideoSession lifecycle, ICE server config. Shared /appointments/:id/video UI with pre-call preview, signaling, auto-reconnect, cards integration, 24 Vitest tests |
 | 10 | medical-records | not started | not started | | |
 | 11 | prescriptions | not started | not started | | |
 | 12 | prescription-pdf | done | n/a | Uday Raj | Merged in PR #17. Django endpoint POST /api/prescriptions/pdf with ReportLab, timing-safe X-Service-Key check, escaping, and tests |
@@ -126,6 +126,11 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-29 | WebRTC signaling payload size limits & flood protection: SDP strings capped at 64 KB, ICE candidate strings capped at 2 KB (`VALIDATION_ERROR`). Signaling flood limit capped at 30 events per 3 seconds per user (`RATE_LIMITED`). Unexpected payload keys rejected | Hardens server against DoS and memory exhaustion without external dependencies |
 | 2026-10-29 | VideoSession lifecycle & disconnect vs explicit end: Unique session per appointment. `startTime` recorded when 2nd participant arrives. Temporary disconnect records `endTime` with `endedReason: 'disconnected'`; rejoin within window clears `endTime`. Explicit leave (`leave_video`) records `endTime`, sets `isExplicitlyEnded: true`, emits `call_ended` to room, and permanently closes rejoining (`CALL_ALREADY_ENDED`) | Accurately tracks actual consultation duration, accommodates network drops / page reloads, and prevents zombie calls after consultation is concluded |
 | 2026-10-29 | In-call appointment cancellation / completion termination: If appointment status changes to `completed` or `cancelled` during a call, server immediately blocks signaling, emits `call_ended`, and dissolves the room | Enforces backend ownership of clinical status over active calls |
+| 2026-10-29 | Shared video route (Choice 1): single `/appointments/:id/video` route guarded by `roleGuard('patient', 'doctor')`, loading `VideoPage` | Reuses the exact same consultation UI and WebRTC signaling pipeline for both roles without duplicate views |
+| 2026-10-29 | Pre-call preview screen (Choice 2): verifies appointment video eligibility via `GET /appointments/:id/video`, acquires local camera/mic stream, renders local preview with audio/video toggles, and requires explicit "Join call" action | Allows patients and doctors to verify hardware/camera preview, view appointment details, and enter room when ready; handles denied permissions and insecure HTTP context gracefully |
+| 2026-10-29 | Dropped connections & auto-reconnect (Choice 3): reactive effect monitors Socket.IO status, shows reconnecting banner, preserves local media stream, and automatically re-emits `join_video` upon reconnection with fallback "Rejoin call" button; cleans up tracks and connection on explicit leave, destroy, and `window:beforeunload` | Robust recovery against transient network drops without restarting media hardware or losing stream context |
+| 2026-10-29 | Early ICE candidate queue buffering: ICE candidates arriving via `receive_candidate` before `setRemoteDescription()` are buffered in `queuedCandidates` and flushed immediately after remote description is applied | Eliminates WebRTC timing race conditions and signaling negotiation failures |
+| 2026-10-29 | Appointment cards "Join video" button: displayed on `/patient/appointments` and `/doctor/appointments` cards strictly when status is `confirmed` and current time is within call window (10m before start to 60m after end) via `VideoService.isWithinCallWindow()` | Prevents navigation to invalid or closed video sessions and integrates seamlessly into existing card actions |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
