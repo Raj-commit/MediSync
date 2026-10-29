@@ -266,6 +266,19 @@
   color: var(--color-text);
 }
 
+.button-chat {
+  background: #f0fdfa;
+  color: var(--color-primary);
+  border: 1px solid #99f6e4;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.button-chat:hover:not(:disabled) {
+  background: #ccfbf1;
+  border-color: var(--color-primary);
+}
+
 .button-secondary:hover:not(:disabled) {
   background: #cbd5e1;
 }

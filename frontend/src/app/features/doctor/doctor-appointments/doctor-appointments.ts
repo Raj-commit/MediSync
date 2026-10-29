@@ -214,6 +214,10 @@ export class DoctorAppointments implements OnInit {
     return isStartedOrPast && apt.status === 'confirmed';
   }
 
+  protected canChat(apt: AppointmentItem): boolean {
+    return apt.status === 'confirmed' || apt.status === 'completed';
+  }
+
   protected formatDate(isoString: string): string {
     const d = new Date(isoString);
     if (isNaN(d.getTime())) return isoString;

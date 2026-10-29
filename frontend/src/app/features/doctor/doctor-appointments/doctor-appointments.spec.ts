@@ -246,4 +246,24 @@ describe('DoctorAppointments Component', () => {
     expect(page.textContent).toContain('No appointments found');
     expect(page.querySelector('.empty-actions a')?.getAttribute('routerLink')).toBe('/doctor/availability');
   });
+
+  it('renders a Chat button only for confirmed or completed appointments', async () => {
+    fixture.detectChanges();
+
+    const req = http.expectOne((r) => r.url === APPOINTMENTS_URL);
+    req.flush(mockAppointmentsResponse);
+
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // apt-1 is requested -> no chat button
+    // apt-2 is confirmed -> has chat button
+    const cards = page.querySelectorAll('.appointment-card');
+    const apt1ChatBtn = cards[0].querySelector('.button-chat');
+    const apt2ChatBtn = cards[1].querySelector('.button-chat');
+
+    expect(apt1ChatBtn).toBeNull();
+    expect(apt2ChatBtn).not.toBeNull();
+    expect(apt2ChatBtn?.getAttribute('href')).toBe('/appointments/apt-2/chat');
+  });
 });
