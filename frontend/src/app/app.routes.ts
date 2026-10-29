@@ -74,6 +74,15 @@ export const routes: Routes = [
     title: 'My appointments | MediSync',
   },
   {
+    path: 'doctor/patient-records/:patientId',
+    canActivate: [roleGuard('doctor')],
+    loadComponent: () =>
+      import('./features/doctor/doctor-patient-records/doctor-patient-records').then(
+        (m) => m.DoctorPatientRecords,
+      ),
+    title: 'Patient medical record | MediSync',
+  },
+  {
     path: 'doctor/availability',
     canActivate: [roleGuard('doctor')],
     loadComponent: () =>

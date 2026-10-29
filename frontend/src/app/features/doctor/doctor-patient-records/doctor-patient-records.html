@@ -1,0 +1,115 @@
+<main class="container">
+  <div class="page-header">
+    <a routerLink="/doctor/appointments" class="back-link">&larr; Back to Appointments</a>
+    <h1>Patient Medical Record</h1>
+
+    @if (patient()) {
+      <div class="patient-banner card">
+        <div class="patient-info">
+          <span class="patient-label">Patient</span>
+          <h2 class="patient-name">{{ patient()?.name }}</h2>
+        </div>
+        @if (patient()?.age !== null && patient()?.age !== undefined) {
+          <div class="patient-age-badge" aria-label="Patient age">
+            <span class="age-value">{{ patient()?.age }}</span>
+            <span class="age-unit">years old</span>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="card state-box" aria-live="polite">
+      <p>Loading medical record...</p>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="card error-box" role="alert">
+      <p class="error">{{ error() }}</p>
+      @if (recordsService.isValidPatientId(patientId())) {
+        <button
+          type="button"
+          class="button button-secondary"
+          (click)="loadRecord(pagination().page)"
+        >
+          Try again
+        </button>
+      }
+    </div>
+  }
+
+  @if (!loading() && !error()) {
+    <section class="records-history-section" aria-labelledby="history-heading">
+      <div class="section-header">
+        <h2 id="history-heading">Past Consultations & Notes</h2>
+      </div>
+
+      @if (entries().length === 0) {
+        <div class="card empty-box">
+          <h3>No past entries on record</h3>
+          <p>This patient has no recorded clinical diagnoses or notes yet.</p>
+        </div>
+      } @else {
+        <div class="results-header">
+          <p class="results-count">
+            Showing {{ entries().length }} of {{ pagination().total }}
+            {{ pagination().total === 1 ? 'entry' : 'entries' }}
+          </p>
+        </div>
+
+        <ul class="records-list" aria-label="Patient medical record entries">
+          @for (entry of entries(); track entry.id) {
+            <li class="card record-card">
+              <div class="record-header">
+                <h3 class="diagnosis-title">{{ entry.diagnosis }}</h3>
+                <span class="record-date">{{ formatDateTime(entry.updatedAt) }}</span>
+              </div>
+
+              <div class="doctor-badge">
+                <span class="doctor-label">Recorded by:</span>
+                <strong class="doctor-name">
+                  {{ entry.updatedBy?.name ? 'Dr. ' + entry.updatedBy.name : 'Attending Doctor' }}
+                </strong>
+              </div>
+
+              <div class="record-body">
+                <h4 class="notes-heading">Clinical Notes</h4>
+                <p class="notes-content">{{ entry.notes }}</p>
+              </div>
+            </li>
+          }
+        </ul>
+
+        @if (pagination().totalPages > 1) {
+          <nav class="pagination-nav" aria-label="Medical records pagination">
+            <button
+              type="button"
+              class="button button-secondary"
+              [disabled]="pagination().page <= 1 || loading()"
+              (click)="onPageChange(pagination().page - 1)"
+              aria-label="Previous page"
+            >
+              &larr; Previous
+            </button>
+
+            <span class="page-indicator" aria-current="page">
+              Page {{ pagination().page }} of {{ pagination().totalPages }}
+            </span>
+
+            <button
+              type="button"
+              class="button button-secondary"
+              [disabled]="pagination().page >= pagination().totalPages || loading()"
+              (click)="onPageChange(pagination().page + 1)"
+              aria-label="Next page"
+            >
+              Next &rarr;
+            </button>
+          </nav>
+        }
+      }
+    </section>
+  }
+</main>
