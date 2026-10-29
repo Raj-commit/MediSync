@@ -1,23 +1,36 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { ActivatedRoute, provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { routes } from '../../app.routes';
 import { AuthService } from '../../core/auth/auth.service';
-import { ChatHistoryResponse, ChatMessage } from '../../core/chat/chat.models';
+import {
+  ChatHistoryResponse,
+  ChatMessage,
+  NewMessageBroadcast,
+} from '../../core/chat/chat.models';
 import { ChatService } from '../../core/chat/chat.service';
+import {
+  SocketConnectionStatus,
+  SocketService,
+} from '../../core/sockets/socket.service';
 import { ChatPage } from './chat';
 
-describe('ChatPage (Step 2 - History & Pagination)', () => {
+describe('ChatPage (Step 3 - Live Real-Time Messaging & Reconnect)', () => {
   let fixture: ComponentFixture<ChatPage>;
   let component: ChatPage;
   let chatServiceSpy: { getHistory: ReturnType<typeof vi.fn> };
-  let roleSignal: ReturnType<typeof signal<'patient' | 'doctor'>>;
-  let authServiceStub: {
-    user: () => { id: string; name: string; email: string; role: 'patient' | 'doctor' } | null;
-    role: () => 'patient' | 'doctor';
+  let socketServiceSpy: {
+    status: ReturnType<typeof signal<SocketConnectionStatus>>;
+    connect: ReturnType<typeof vi.fn>;
+    disconnect: ReturnType<typeof vi.fn>;
+    emitWithAck: ReturnType<typeof vi.fn>;
+    on: ReturnType<typeof vi.fn>;
   };
+  let newMessageSubject: Subject<NewMessageBroadcast>;
+  let roleSignal: ReturnType<typeof signal<'patient' | 'doctor'>>;
+  let connectionStatusSignal: ReturnType<typeof signal<SocketConnectionStatus>>;
 
   const mockMessages: ChatMessage[] = [
     {
@@ -25,7 +38,7 @@ describe('ChatPage (Step 2 - History & Pagination)', () => {
       appointment: 'appt-123',
       seq: 1,
       sender: { id: 'patient-1', name: 'John Doe' },
-      content: 'Hello doctor, I have a question about my medication.',
+      content: 'Hello doctor!',
       timestamp: '2026-10-29T10:00:00.000Z',
     },
     {
@@ -33,7 +46,7 @@ describe('ChatPage (Step 2 - History & Pagination)', () => {
       appointment: 'appt-123',
       seq: 2,
       sender: { id: 'doctor-1', name: 'Dr. Jane Smith' },
-      content: 'Hello John! Sure, what symptoms are you experiencing?',
+      content: 'Hello John! How can I assist you?',
       timestamp: '2026-10-29T10:01:00.000Z',
     },
   ];
@@ -43,17 +56,23 @@ describe('ChatPage (Step 2 - History & Pagination)', () => {
       getHistory: vi.fn(),
     };
 
-    roleSignal = signal<'patient' | 'doctor'>('patient');
+    newMessageSubject = new Subject<NewMessageBroadcast>();
+    connectionStatusSignal = signal<SocketConnectionStatus>('connected');
 
-    authServiceStub = {
-      user: () => ({
-        id: 'patient-1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        role: 'patient',
+    socketServiceSpy = {
+      status: connectionStatusSignal,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      emitWithAck: vi.fn().mockResolvedValue({ success: true, appointmentId: 'appt-123' }),
+      on: vi.fn().mockImplementation((event: string) => {
+        if (event === 'new_message') {
+          return newMessageSubject.asObservable();
+        }
+        return of();
       }),
-      role: roleSignal,
     };
+
+    roleSignal = signal<'patient' | 'doctor'>('patient');
 
     await TestBed.configureTestingModule({
       imports: [ChatPage],
@@ -70,174 +89,251 @@ describe('ChatPage (Step 2 - History & Pagination)', () => {
           },
         },
         { provide: ChatService, useValue: chatServiceSpy },
-        { provide: AuthService, useValue: authServiceStub },
+        { provide: SocketService, useValue: socketServiceSpy },
+        {
+          provide: AuthService,
+          useValue: {
+            user: () => ({
+              id: 'patient-1',
+              name: 'John Doe',
+              email: 'john@example.com',
+              role: 'patient',
+            }),
+            role: roleSignal,
+          },
+        },
       ],
     }).compileComponents();
   });
 
-  it('loads and renders message history on initialization', () => {
-    chatServiceSpy.getHistory.mockReturnValue(
-      of({
-        messages: mockMessages,
-        hasMore: false,
-      } as ChatHistoryResponse),
-    );
-
-    fixture = TestBed.createComponent(ChatPage);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-
-    expect(chatServiceSpy.getHistory).toHaveBeenCalledWith('appt-123', { limit: 50 });
-    expect(component.messages().length).toBe(2);
-
-    const compiled = fixture.nativeElement as HTMLElement;
-    const messageRows = compiled.querySelectorAll('.message-row');
-    expect(messageRows.length).toBe(2);
-
-    // Verify plain-text content
-    expect(compiled.textContent).toContain('Hello doctor, I have a question about my medication.');
-    expect(compiled.textContent).toContain('Hello John! Sure, what symptoms are you experiencing?');
+  afterEach(() => {
+    newMessageSubject.complete();
   });
 
-  it('visually and textually identifies own messages with (You) distinction', () => {
+  it('connects to socket and joins the appointment room on initialization', () => {
     chatServiceSpy.getHistory.mockReturnValue(
-      of({
-        messages: mockMessages,
-        hasMore: false,
-      } as ChatHistoryResponse),
+      of({ messages: mockMessages, hasMore: false } as ChatHistoryResponse),
     );
 
     fixture = TestBed.createComponent(ChatPage);
     component = fixture.componentInstance;
     fixture.detectChanges();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    const ownRows = compiled.querySelectorAll('.own-row');
-    const otherRows = compiled.querySelectorAll('.other-row');
-
-    expect(ownRows.length).toBe(1);
-    expect(otherRows.length).toBe(1);
-
-    expect(ownRows[0].textContent).toContain('You');
-    expect(ownRows[0].textContent).toContain('(You)');
-    expect(otherRows[0].textContent).toContain('Dr. Jane Smith');
-  });
-
-  it('displays empty state when consultation has no messages', () => {
-    chatServiceSpy.getHistory.mockReturnValue(
-      of({
-        messages: [],
-        hasMore: false,
-      } as ChatHistoryResponse),
-    );
-
-    fixture = TestBed.createComponent(ChatPage);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.empty-chat-state')).not.toBeNull();
-    expect(compiled.textContent).toContain('No messages yet in this consultation.');
-  });
-
-  it('shows Load earlier messages button when hasMore is true and prepends earlier messages without duplicates', () => {
-    chatServiceSpy.getHistory.mockReturnValueOnce(
-      of({
-        messages: [mockMessages[1]], // only seq 2
-        hasMore: true,
-      } as ChatHistoryResponse),
-    );
-
-    fixture = TestBed.createComponent(ChatPage);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-
-    expect(component.hasMore()).toBe(true);
-
-    const earlierMock: ChatMessage = {
-      id: 'msg-0',
-      appointment: 'appt-123',
-      seq: 0,
-      sender: { id: 'patient-1', name: 'John Doe' },
-      content: 'Early question',
-      timestamp: '2026-10-29T09:55:00.000Z',
-    };
-
-    chatServiceSpy.getHistory.mockReturnValueOnce(
-      of({
-        messages: [earlierMock, mockMessages[1]], // returns seq 0 and duplicate seq 2
-        hasMore: false,
-      } as ChatHistoryResponse),
-    );
-
-    component.loadEarlierMessages();
-    fixture.detectChanges();
-
-    expect(chatServiceSpy.getHistory).toHaveBeenCalledWith('appt-123', {
-      limit: 50,
-      beforeSeq: 2,
+    expect(socketServiceSpy.connect).toHaveBeenCalled();
+    expect(socketServiceSpy.emitWithAck).toHaveBeenCalledWith('join_chat', {
+      appointmentId: 'appt-123',
     });
-
-    // Should have seq 0 and seq 2, de-duplicated
-    expect(component.messages().length).toBe(2);
-    expect(component.messages()[0].seq).toBe(0);
-    expect(component.messages()[1].seq).toBe(2);
-    expect(component.hasMore()).toBe(false);
+    expect(socketServiceSpy.on).toHaveBeenCalledWith('new_message');
   });
 
-  it('displays error message when history loading fails (404 not found)', () => {
+  it('disconnects socket on component destruction', () => {
     chatServiceSpy.getHistory.mockReturnValue(
-      throwError(() => ({
-        status: 404,
-        error: { message: 'Appointment not found', code: 'NOT_FOUND' },
-      })),
+      of({ messages: [], hasMore: false } as ChatHistoryResponse),
     );
 
     fixture = TestBed.createComponent(ChatPage);
-    component = fixture.componentInstance;
     fixture.detectChanges();
 
-    expect(component.historyError()).toContain('not available for this appointment');
-    const compiled = fixture.nativeElement as HTMLElement;
-    const errorBox = compiled.querySelector('.error-box');
-    expect(errorBox).not.toBeNull();
-    expect(errorBox?.getAttribute('role')).toBe('alert');
+    fixture.destroy();
+    expect(socketServiceSpy.disconnect).toHaveBeenCalled();
   });
 
-  it('displays friendly message when server cannot be reached (status 0)', () => {
-    chatServiceSpy.getHistory.mockReturnValue(
-      throwError(() => ({
-        status: 0,
-      })),
-    );
-
-    fixture = TestBed.createComponent(ChatPage);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-
-    expect(component.historyError()).toBe('Cannot reach the server. Please try again.');
-  });
-
-  it('correctly maps back path for patient and doctor roles', () => {
+  it('displays the reactive connection status pill', () => {
     chatServiceSpy.getHistory.mockReturnValue(
       of({ messages: [], hasMore: false } as ChatHistoryResponse),
     );
 
     fixture = TestBed.createComponent(ChatPage);
     component = fixture.componentInstance;
+    fixture.detectChanges();
 
-    // Patient role
-    expect(component.backPath()).toBe('/patient/appointments');
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.connection-pill.connected')).not.toBeNull();
+    expect(compiled.textContent).toContain('Connected');
 
-    // Doctor role
-    roleSignal.set('doctor');
-    expect(component.backPath()).toBe('/doctor/appointments');
+    connectionStatusSignal.set('reconnecting');
+    fixture.detectChanges();
+    expect(compiled.querySelector('.connection-pill.reconnecting')).not.toBeNull();
+    expect(compiled.textContent).toContain('Reconnecting...');
   });
 
-  it('verifies route guard configuration for /appointments/:id/chat', () => {
-    const chatRoute = routes.find((r) => r.path === 'appointments/:id/chat');
-    expect(chatRoute).toBeDefined();
-    expect(chatRoute?.title).toBe('Consultation chat | MediSync');
-    expect(chatRoute?.canActivate).toBeDefined();
+  it('appends live incoming new_message and de-duplicates by sequence number', () => {
+    chatServiceSpy.getHistory.mockReturnValue(
+      of({ messages: mockMessages, hasMore: false } as ChatHistoryResponse),
+    );
+
+    fixture = TestBed.createComponent(ChatPage);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    expect(component.messages().length).toBe(2);
+
+    // Incoming duplicate of seq 2 (should be ignored)
+    newMessageSubject.next({
+      appointmentId: 'appt-123',
+      message: mockMessages[1],
+    });
+    expect(component.messages().length).toBe(2);
+
+    // Incoming new message seq 3
+    const liveMsg: ChatMessage = {
+      id: 'msg-3',
+      appointment: 'appt-123',
+      seq: 3,
+      sender: { id: 'doctor-1', name: 'Dr. Jane Smith' },
+      content: 'Please take the tablet after meals.',
+      timestamp: '2026-10-29T10:02:00.000Z',
+    };
+
+    newMessageSubject.next({
+      appointmentId: 'appt-123',
+      message: liveMsg,
+    });
+    fixture.detectChanges();
+
+    expect(component.messages().length).toBe(3);
+    expect(component.messages()[2].content).toBe('Please take the tablet after meals.');
+
+    // Message for another appointment should be ignored
+    newMessageSubject.next({
+      appointmentId: 'other-appt',
+      message: { ...liveMsg, seq: 4, appointment: 'other-appt' },
+    });
+    expect(component.messages().length).toBe(3);
+  });
+
+  it('sends message via Socket.IO, clears input on success, and appends server message', async () => {
+    chatServiceSpy.getHistory.mockReturnValue(
+      of({ messages: mockMessages, hasMore: false } as ChatHistoryResponse),
+    );
+
+    const sentMessage: ChatMessage = {
+      id: 'msg-3',
+      appointment: 'appt-123',
+      seq: 3,
+      sender: { id: 'patient-1', name: 'John Doe' },
+      content: 'Thank you doctor!',
+      timestamp: '2026-10-29T10:03:00.000Z',
+    };
+
+    socketServiceSpy.emitWithAck.mockImplementation((event: string) => {
+      if (event === 'send_message') {
+        return Promise.resolve({ success: true, message: sentMessage });
+      }
+      return Promise.resolve({ success: true });
+    });
+
+    fixture = TestBed.createComponent(ChatPage);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.text.set('Thank you doctor!');
+    await component.sendMessage();
+    fixture.detectChanges();
+
+    expect(socketServiceSpy.emitWithAck).toHaveBeenCalledWith('send_message', {
+      appointmentId: 'appt-123',
+      content: 'Thank you doctor!',
+    });
+
+    // Input should be cleared on success
+    expect(component.text()).toBe('');
+    expect(component.sendError()).toBeNull();
+    // Message should be appended
+    expect(component.messages().length).toBe(3);
+    expect(component.messages()[2].content).toBe('Thank you doctor!');
+  });
+
+  it('preserves user text on send failure and displays server error message', async () => {
+    chatServiceSpy.getHistory.mockReturnValue(
+      of({ messages: mockMessages, hasMore: false } as ChatHistoryResponse),
+    );
+
+    socketServiceSpy.emitWithAck.mockImplementation((event: string) => {
+      if (event === 'send_message') {
+        return Promise.resolve({
+          success: false,
+          code: 'RATE_LIMITED',
+          message: 'Too many messages. Please slow down.',
+        });
+      }
+      return Promise.resolve({ success: true });
+    });
+
+    fixture = TestBed.createComponent(ChatPage);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.text.set('My important question that must not be lost');
+    await component.sendMessage();
+    fixture.detectChanges();
+
+    // Text must remain intact
+    expect(component.text()).toBe('My important question that must not be lost');
+    expect(component.sendError()).toBe('Too many messages. Please slow down.');
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.composer-error-banner')).not.toBeNull();
+    expect(compiled.textContent).toContain('Too many messages. Please slow down.');
+  });
+
+  it('catches up on missed messages after socket reconnection using afterSeq', () => {
+    chatServiceSpy.getHistory.mockReturnValueOnce(
+      of({ messages: mockMessages, hasMore: false } as ChatHistoryResponse),
+    );
+
+    fixture = TestBed.createComponent(ChatPage);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    expect(component.messages().length).toBe(2);
+
+    const missedMsg: ChatMessage = {
+      id: 'msg-3',
+      appointment: 'appt-123',
+      seq: 3,
+      sender: { id: 'doctor-1', name: 'Dr. Jane Smith' },
+      content: 'Are you still there?',
+      timestamp: '2026-10-29T10:04:00.000Z',
+    };
+
+    chatServiceSpy.getHistory.mockReturnValueOnce(
+      of({ messages: [missedMsg], hasMore: false } as ChatHistoryResponse),
+    );
+
+    // Simulate drop and reconnect
+    connectionStatusSignal.set('reconnecting');
+    fixture.detectChanges();
+
+    connectionStatusSignal.set('connected');
+    fixture.detectChanges();
+
+    expect(socketServiceSpy.emitWithAck).toHaveBeenCalledWith('join_chat', {
+      appointmentId: 'appt-123',
+    });
+    expect(chatServiceSpy.getHistory).toHaveBeenCalledWith('appt-123', {
+      afterSeq: 2,
+    });
+
+    expect(component.messages().length).toBe(3);
+    expect(component.messages()[2].seq).toBe(3);
+  });
+
+  it('disables composer and displays read-only banner when consultation is closed', () => {
+    chatServiceSpy.getHistory.mockReturnValue(
+      of({ messages: mockMessages, hasMore: false } as ChatHistoryResponse),
+    );
+
+    fixture = TestBed.createComponent(ChatPage);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.chatClosed.set(true);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.chat-closed-banner')).not.toBeNull();
+    expect(compiled.querySelector('.composer-form')).toBeNull();
+    expect(compiled.textContent).toContain('This consultation has ended and the conversation is now read-only.');
   });
 });

@@ -5,9 +5,20 @@
     </a>
     <div class="title-row">
       <h1>Consultation Chat</h1>
+      <span
+        class="connection-pill"
+        [class.connected]="connectionStatus() === 'connected'"
+        [class.connecting]="connectionStatus() === 'connecting'"
+        [class.reconnecting]="connectionStatus() === 'reconnecting'"
+        [class.disconnected]="connectionStatus() === 'disconnected'"
+        [attr.aria-label]="'Connection status: ' + statusLabel()"
+      >
+        <span class="status-dot" aria-hidden="true"></span>
+        {{ statusLabel() }}
+      </span>
     </div>
     <p class="subtitle">
-      Secure, private message history for this consultation.
+      Secure, private message channel for this consultation.
     </p>
   </div>
 
@@ -39,8 +50,8 @@
     <div class="chat-card">
       <div class="chat-card-header">
         <div class="chat-card-info">
-          <h2>Conversation</h2>
-          <span class="status-tag">Read-only history</span>
+          <h2>Messages</h2>
+          <span class="active-room-indicator">Consultation room</span>
         </div>
       </div>
 
@@ -64,10 +75,11 @@
         aria-live="polite"
         aria-relevant="additions"
         aria-label="Consultation messages"
+        (scroll)="onScroll($event)"
       >
         @if (messages().length === 0) {
           <div class="empty-chat-state">
-            <p>No messages yet in this consultation.</p>
+            <p>No messages yet in this consultation. Start the conversation below.</p>
           </div>
         } @else {
           <ul class="message-list" aria-label="Messages list">
@@ -99,7 +111,74 @@
             }
           </ul>
         }
+
+        @if (unreadBelow()) {
+          <button
+            type="button"
+            class="jump-to-bottom-button"
+            (click)="jumpToBottom()"
+            aria-label="Jump to newest messages"
+          >
+            &darr; New messages
+          </button>
+        }
       </div>
+
+      <footer class="chat-composer">
+        @if (sendError()) {
+          <div class="composer-error-banner" role="alert">
+            <span class="error-text">{{ sendError() }}</span>
+            <button
+              type="button"
+              class="dismiss-error-button"
+              (click)="sendError.set(null)"
+              aria-label="Dismiss error"
+            >
+              &times;
+            </button>
+          </div>
+        }
+
+        @if (chatClosed()) {
+          <div class="chat-closed-banner" role="status">
+            <p>This consultation has ended and the conversation is now read-only.</p>
+          </div>
+        } @else {
+          <form (ngSubmit)="sendMessage()" class="composer-form">
+            <div class="composer-input-wrapper">
+              <label for="chat-message-input" class="visually-hidden">
+                Type your consultation message
+              </label>
+              <textarea
+                id="chat-message-input"
+                class="composer-textarea"
+                rows="2"
+                placeholder="Type a message... (Press Enter to send, Shift+Enter for new line)"
+                maxlength="1000"
+                [value]="text()"
+                (input)="onTextInput($event)"
+                (keydown)="onKeyDown($event)"
+                [disabled]="sending()"
+              ></textarea>
+              <div class="composer-counter" aria-live="polite">
+                <span [class.counter-warn]="text().length > 900">{{ text().length }}</span> / 1000
+              </div>
+            </div>
+            <button
+              type="submit"
+              class="button button-send"
+              [disabled]="sending() || !text().trim()"
+              aria-label="Send message"
+            >
+              @if (sending()) {
+                <span>Sending...</span>
+              } @else {
+                <span>Send</span>
+              }
+            </button>
+          </form>
+        }
+      </footer>
     </div>
   }
 </div>
