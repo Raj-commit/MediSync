@@ -2,12 +2,64 @@ const { User } = require('../models/User');
 const Appointment = require('../models/Appointment');
 const videoService = require('../services/videoService');
 const { getIceServers } = require('../config/iceServers');
-const { validateAppointmentId } = require('../utils/validateVideo');
+const {
+  validateAppointmentId,
+  validateSdpPayload,
+  validateCandidatePayload,
+} = require('../utils/validateVideo');
 const AppError = require('../utils/AppError');
 
 // In-memory mapping of active video consultation rooms:
 // appointmentId -> Map<socketId, { userId: string, role: string, name: string, socket: Socket }>
 const activeCallRooms = new Map();
+
+// In-memory rate limiting map for WebRTC signaling events:
+// userId -> number[] (timestamps)
+const userSignalingHistory = new Map();
+const SIGNALING_FLOOD_LIMIT = 30;
+const SIGNALING_FLOOD_WINDOW_MS = 3000;
+
+/**
+ * Checks in-memory message rate limit per user for signaling events.
+ * Allows at most SIGNALING_FLOOD_LIMIT events within SIGNALING_FLOOD_WINDOW_MS.
+ *
+ * @param {string} userId
+ * @returns {boolean} True if allowed, false if rate limited
+ */
+function checkSignalingFloodLimit(userId) {
+  const now = Date.now();
+  const history = userSignalingHistory.get(userId) || [];
+  const recent = history.filter((time) => now - time < SIGNALING_FLOOD_WINDOW_MS);
+
+  if (recent.length >= SIGNALING_FLOOD_LIMIT) {
+    userSignalingHistory.set(userId, recent);
+    return false;
+  }
+
+  recent.push(now);
+  userSignalingHistory.set(userId, recent);
+
+  // Periodic pruning if map grows large to prevent unbounded memory usage
+  if (userSignalingHistory.size > 1000) {
+    for (const [id, timestamps] of userSignalingHistory.entries()) {
+      const active = timestamps.filter((t) => now - t < SIGNALING_FLOOD_WINDOW_MS);
+      if (active.length === 0) {
+        userSignalingHistory.delete(id);
+      } else {
+        userSignalingHistory.set(id, active);
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Resets signaling flood limit tracking (useful for automated testing).
+ */
+function _resetSignalingFloodLimits() {
+  userSignalingHistory.clear();
+}
 
 /**
  * Resets active call rooms (useful for test isolation).
@@ -114,6 +166,11 @@ function registerVideoHandlers(io, socket) {
   // Client requests to join the 2-person video consultation room.
   socket.on('join_video', async (payload, callback) => {
     try {
+      const userId = (socket.user?._id || socket.user?.id)?.toString();
+      if (!userId || !checkSignalingFloodLimit(userId)) {
+        throw new AppError(429, 'RATE_LIMITED', 'Too many signaling requests. Please slow down.');
+      }
+
       // 1. Verify user is active in DB
       const activeUser = await verifyActiveUser(socket);
       const data = parsePayload(payload);
@@ -209,12 +266,16 @@ function registerVideoHandlers(io, socket) {
   });
 
   // Event: relay_offer
-  // Relays WebRTC SDP offer to the other peer in the room.
+  // Relays validated WebRTC SDP offer to the other peer in the room.
   socket.on('relay_offer', async (payload, callback) => {
     try {
+      const userId = (socket.user?._id || socket.user?.id)?.toString();
+      if (!userId || !checkSignalingFloodLimit(userId)) {
+        throw new AppError(429, 'RATE_LIMITED', 'Too many signaling requests. Please slow down.');
+      }
+
       await verifyActiveUser(socket);
-      const data = parsePayload(payload);
-      const appointmentId = validateAppointmentId(data.appointmentId);
+      const { appointmentId, sdp, type } = validateSdpPayload(payload, 'offer');
       await checkAppointmentStatus(appointmentId, io);
 
       const roomParticipants = activeCallRooms.get(appointmentId);
@@ -223,9 +284,6 @@ function registerVideoHandlers(io, socket) {
       }
 
       const roomName = `video:${appointmentId}`;
-      const sdp = data.sdp || data.offer?.sdp;
-      const type = data.type || data.offer?.type || 'offer';
-
       socket.to(roomName).emit('receive_offer', {
         appointmentId,
         offer: { type, sdp },
@@ -241,17 +299,26 @@ function registerVideoHandlers(io, socket) {
       const status = err.status || 500;
       const code = err.code || (status === 500 ? 'INTERNAL_ERROR' : 'ERROR');
       const message = status === 500 ? 'Failed to relay offer' : err.message;
+
       acknowledge(callback, { success: false, code, message });
+
+      if (code === 'ACCOUNT_DISABLED') {
+        socket.disconnect(true);
+      }
     }
   });
 
   // Event: relay_answer
-  // Relays WebRTC SDP answer to the other peer in the room.
+  // Relays validated WebRTC SDP answer to the other peer in the room.
   socket.on('relay_answer', async (payload, callback) => {
     try {
+      const userId = (socket.user?._id || socket.user?.id)?.toString();
+      if (!userId || !checkSignalingFloodLimit(userId)) {
+        throw new AppError(429, 'RATE_LIMITED', 'Too many signaling requests. Please slow down.');
+      }
+
       await verifyActiveUser(socket);
-      const data = parsePayload(payload);
-      const appointmentId = validateAppointmentId(data.appointmentId);
+      const { appointmentId, sdp, type } = validateSdpPayload(payload, 'answer');
       await checkAppointmentStatus(appointmentId, io);
 
       const roomParticipants = activeCallRooms.get(appointmentId);
@@ -260,9 +327,6 @@ function registerVideoHandlers(io, socket) {
       }
 
       const roomName = `video:${appointmentId}`;
-      const sdp = data.sdp || data.answer?.sdp;
-      const type = data.type || data.answer?.type || 'answer';
-
       socket.to(roomName).emit('receive_answer', {
         appointmentId,
         answer: { type, sdp },
@@ -278,17 +342,26 @@ function registerVideoHandlers(io, socket) {
       const status = err.status || 500;
       const code = err.code || (status === 500 ? 'INTERNAL_ERROR' : 'ERROR');
       const message = status === 500 ? 'Failed to relay answer' : err.message;
+
       acknowledge(callback, { success: false, code, message });
+
+      if (code === 'ACCOUNT_DISABLED') {
+        socket.disconnect(true);
+      }
     }
   });
 
   // Event: relay_candidate
-  // Relays an ICE candidate to the other peer in the room.
+  // Relays validated ICE candidate to the other peer in the room.
   socket.on('relay_candidate', async (payload, callback) => {
     try {
+      const userId = (socket.user?._id || socket.user?.id)?.toString();
+      if (!userId || !checkSignalingFloodLimit(userId)) {
+        throw new AppError(429, 'RATE_LIMITED', 'Too many signaling requests. Please slow down.');
+      }
+
       await verifyActiveUser(socket);
-      const data = parsePayload(payload);
-      const appointmentId = validateAppointmentId(data.appointmentId);
+      const { appointmentId, candidate } = validateCandidatePayload(payload);
       await checkAppointmentStatus(appointmentId, io);
 
       const roomParticipants = activeCallRooms.get(appointmentId);
@@ -299,7 +372,7 @@ function registerVideoHandlers(io, socket) {
       const roomName = `video:${appointmentId}`;
       socket.to(roomName).emit('receive_candidate', {
         appointmentId,
-        candidate: data.candidate,
+        candidate,
         sender: {
           id: socket.user._id.toString(),
           name: socket.user.name,
@@ -311,7 +384,12 @@ function registerVideoHandlers(io, socket) {
       const status = err.status || 500;
       const code = err.code || (status === 500 ? 'INTERNAL_ERROR' : 'ERROR');
       const message = status === 500 ? 'Failed to relay ICE candidate' : err.message;
+
       acknowledge(callback, { success: false, code, message });
+
+      if (code === 'ACCOUNT_DISABLED') {
+        socket.disconnect(true);
+      }
     }
   });
 
@@ -417,6 +495,10 @@ function registerVideoHandlers(io, socket) {
 }
 
 module.exports = {
+  SIGNALING_FLOOD_LIMIT,
+  SIGNALING_FLOOD_WINDOW_MS,
+  checkSignalingFloodLimit,
+  _resetSignalingFloodLimits,
   registerVideoHandlers,
   _resetCallRooms,
   _getActiveCallRooms,
