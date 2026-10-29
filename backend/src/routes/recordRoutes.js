@@ -27,4 +27,15 @@ router.get(
   recordController.getPatientRecordByDoctor
 );
 
+// Doctor appends a new entry to patient's medical record
+// 1. authenticate: checks valid JWT
+// 2. requireRole: doctors only (patients and admins rejected with 403 FORBIDDEN)
+// 3. addPatientRecordEntry: checks appointment, validates body, appends atomically
+router.post(
+  '/patient/:patientId/entries',
+  authenticate,
+  requireRole('doctor'),
+  recordController.addPatientRecordEntry
+);
+
 module.exports = router;

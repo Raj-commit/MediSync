@@ -3,6 +3,7 @@ const {
   validatePatientId,
   validateRecordsQuery,
   validateEmptyBody,
+  validateEntryInput,
 } = require('../utils/validateRecord');
 
 /**
@@ -36,7 +37,23 @@ async function getPatientRecordByDoctor(req, res) {
   res.status(200).json(result);
 }
 
+/**
+ * POST /api/v1/records/patient/:patientId/entries
+ * Doctor appends an entry to a patient's medical record.
+ * Order of checks: valid JWT, role 'doctor', verifyDoctorAccess (appointment check + anti-enumeration), validate body.
+ */
+async function addPatientRecordEntry(req, res) {
+  const patientId = validatePatientId(req.params.patientId);
+  const entryData = validateEntryInput(req.body);
+
+  const result = await recordService.addRecordEntry(req.user, patientId, entryData);
+
+  res.set('Cache-Control', 'no-store');
+  res.status(201).json(result);
+}
+
 module.exports = {
   getOwnRecord,
   getPatientRecordByDoctor,
+  addPatientRecordEntry,
 };
