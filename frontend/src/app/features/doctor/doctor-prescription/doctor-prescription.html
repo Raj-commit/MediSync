@@ -1,0 +1,332 @@
+<main class="container">
+  <div class="page-header">
+    <a routerLink="/doctor/appointments" class="back-link">&larr; Back to Appointments</a>
+    <h1>Digital Prescription</h1>
+    <p class="subtitle">Issue and review prescription details for this consultation.</p>
+  </div>
+
+  @if (submitNotice()) {
+    <div class="card notice-box" role="status" aria-live="polite">
+      <p class="notice-text">{{ submitNotice() }}</p>
+    </div>
+  }
+
+  @if (pageError() && isValidId()) {
+    <div class="card error-box" role="alert">
+      <p class="error">{{ pageError() }}</p>
+      <button
+        type="button"
+        class="button button-secondary"
+        (click)="checkExistingPrescription(appointmentId())"
+      >
+        Try again
+      </button>
+    </div>
+  }
+
+  @if (!isValidId()) {
+    <div class="card error-box" role="alert">
+      <h2>Invalid Appointment Link</h2>
+      <p class="error">{{ pageError() }}</p>
+      <div class="actions">
+        <a routerLink="/doctor/appointments" class="button button-secondary">
+          Back to appointments
+        </a>
+      </div>
+    </div>
+  }
+
+  @if (loading() && isValidId()) {
+    <div class="card state-box" aria-live="polite">
+      <p>Checking prescription status...</p>
+    </div>
+  }
+
+  @if (!loading() && isValidId()) {
+    @if (existingPrescription(); as rx) {
+      <!-- Read-Only View of Issued Prescription -->
+      <section class="card prescription-view-card" aria-labelledby="issued-prescription-heading">
+        <div class="view-header">
+          <div>
+            <h2 id="issued-prescription-heading">Issued Digital Prescription</h2>
+            <p class="meta-info">
+              Issued on: <strong>{{ formatDate(rx.issuedDate) }}</strong>
+              @if (rx.patient.name) {
+                &bull; Patient: <strong>{{ rx.patient.name }}</strong>
+              }
+            </p>
+          </div>
+          <div>
+            @if (rx.pdfStatus === 'pending') {
+              <span class="badge badge-pending">PDF pending</span>
+            } @else {
+              <span class="badge badge-ready">Prescription active</span>
+            }
+          </div>
+        </div>
+
+        @if (rx.pdfStatus === 'pending') {
+          <div class="pdf-pending-alert" role="status">
+            <p>
+              Prescription saved, but PDF generation is currently unavailable. You can retry
+              downloading it.
+            </p>
+          </div>
+        }
+
+        @if (pdfError()) {
+          <div class="card error-box inline-error" role="alert">
+            <p class="error">{{ pdfError() }}</p>
+          </div>
+        }
+
+        <div class="items-section">
+          <h3>Prescribed Medicines ({{ rx.items.length }})</h3>
+          <ul class="medicines-list" aria-label="Issued medicines list">
+            @for (item of rx.items; track $index) {
+              <li class="medicine-item">
+                <div class="medicine-top">
+                  <strong class="medicine-name">{{ item.medicine }}</strong>
+                  <span class="medicine-dosage">{{ item.dosage }}</span>
+                </div>
+                <p class="medicine-instructions">{{ item.instructions }}</p>
+              </li>
+            }
+          </ul>
+        </div>
+
+        <div class="view-actions">
+          <button
+            type="button"
+            class="button button-download"
+            [disabled]="downloadingPdf()"
+            (click)="downloadPdf()"
+            aria-label="Download prescription PDF"
+          >
+            @if (downloadingPdf()) {
+              Generating & downloading...
+            } @else if (rx.pdfStatus === 'pending') {
+              Retry PDF Download
+            } @else {
+              Download PDF
+            }
+          </button>
+        </div>
+      </section>
+    } @else {
+      <!-- Prescription Creation Form -->
+      <section class="card form-card" aria-labelledby="form-heading">
+        <div class="form-header">
+          <h2 id="form-heading">Create Digital Prescription</h2>
+          <p class="form-sub">
+            Add medicines, dosage guidelines, and administration instructions. You may prescribe up
+            to 50 items.
+          </p>
+        </div>
+
+        <form [formGroup]="form" (ngSubmit)="openConfirmModal()" novalidate>
+          <div formArrayName="items" class="items-form-array">
+            @for (itemGroup of items.controls; track $index) {
+              <div [formGroupName]="$index" class="card item-form-card">
+                <div class="item-card-header">
+                  <h3 class="item-number">Medicine #{{ $index + 1 }}</h3>
+                  @if (items.length > minItems) {
+                    <button
+                      type="button"
+                      class="button-text button-remove"
+                      (click)="removeItem($index)"
+                      [attr.aria-label]="'Remove medicine ' + ($index + 1)"
+                    >
+                      &times; Remove
+                    </button>
+                  }
+                </div>
+
+                <div class="form-grid">
+                  <!-- Medicine Name -->
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label [for]="'medicine-' + $index">Medicine Name *</label>
+                      <span class="char-counter" aria-live="polite">
+                        {{ itemGroup.controls.medicine.value.length }}/{{ medicineMaxLen }}
+                      </span>
+                    </div>
+                    <input
+                      [id]="'medicine-' + $index"
+                      type="text"
+                      formControlName="medicine"
+                      [maxlength]="medicineMaxLen"
+                      placeholder="e.g. Amoxicillin 500mg capsule"
+                      [class.ng-invalid]="
+                        itemGroup.controls.medicine.invalid && itemGroup.controls.medicine.touched
+                      "
+                    />
+                    @if (
+                      itemGroup.controls.medicine.touched && itemGroup.controls.medicine.errors
+                    ) {
+                      <p class="error" role="alert">
+                        @if (itemGroup.controls.medicine.errors['required']) {
+                          Medicine name is required.
+                        } @else if (itemGroup.controls.medicine.errors['maxlength']) {
+                          Medicine name must not exceed {{ medicineMaxLen }} characters.
+                        }
+                      </p>
+                    }
+                  </div>
+
+                  <!-- Dosage -->
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label [for]="'dosage-' + $index">Dosage & Frequency *</label>
+                      <span class="char-counter" aria-live="polite">
+                        {{ itemGroup.controls.dosage.value.length }}/{{ dosageMaxLen }}
+                      </span>
+                    </div>
+                    <input
+                      [id]="'dosage-' + $index"
+                      type="text"
+                      formControlName="dosage"
+                      [maxlength]="dosageMaxLen"
+                      placeholder="e.g. 1 capsule three times daily"
+                      [class.ng-invalid]="
+                        itemGroup.controls.dosage.invalid && itemGroup.controls.dosage.touched
+                      "
+                    />
+                    @if (itemGroup.controls.dosage.touched && itemGroup.controls.dosage.errors) {
+                      <p class="error" role="alert">
+                        @if (itemGroup.controls.dosage.errors['required']) {
+                          Dosage is required.
+                        } @else if (itemGroup.controls.dosage.errors['maxlength']) {
+                          Dosage must not exceed {{ dosageMaxLen }} characters.
+                        }
+                      </p>
+                    }
+                  </div>
+                </div>
+
+                <!-- Instructions -->
+                <div class="form-group instructions-group">
+                  <div class="label-row">
+                    <label [for]="'instructions-' + $index">Instructions & Duration *</label>
+                    <span class="char-counter" aria-live="polite">
+                      {{ itemGroup.controls.instructions.value.length }}/{{ instructionsMaxLen }}
+                    </span>
+                  </div>
+                  <textarea
+                    [id]="'instructions-' + $index"
+                    formControlName="instructions"
+                    rows="3"
+                    [maxlength]="instructionsMaxLen"
+                    placeholder="e.g. Take after meals with plenty of water for 7 days. Complete full course."
+                    [class.ng-invalid]="
+                      itemGroup.controls.instructions.invalid &&
+                      itemGroup.controls.instructions.touched
+                    "
+                  ></textarea>
+                  @if (
+                    itemGroup.controls.instructions.touched &&
+                    itemGroup.controls.instructions.errors
+                  ) {
+                    <p class="error" role="alert">
+                      @if (itemGroup.controls.instructions.errors['required']) {
+                        Instructions are required.
+                      } @else if (itemGroup.controls.instructions.errors['maxlength']) {
+                        Instructions must not exceed {{ instructionsMaxLen }} characters.
+                      }
+                    </p>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="form-controls">
+            @if (items.length < maxItems) {
+              <button type="button" class="button button-secondary button-add" (click)="addItem()">
+                + Add another medicine
+              </button>
+            }
+          </div>
+
+          <div class="form-submit-row">
+            <button
+              type="submit"
+              class="button button-primary"
+              [disabled]="form.invalid || submitting()"
+            >
+              Review & Issue Prescription
+            </button>
+          </div>
+        </form>
+      </section>
+    }
+  }
+
+  <!-- Confirmation Modal Dialog -->
+  @if (showConfirmModal()) {
+    <div
+      class="modal-backdrop"
+      (click)="closeConfirmModal()"
+      (keydown.escape)="closeConfirmModal()"
+      tabindex="-1"
+    >
+      <div
+        class="modal-dialog card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        (click)="$event.stopPropagation()"
+      >
+        <h2 id="confirm-dialog-title">Confirm Prescription Issuance</h2>
+
+        <p class="modal-warning">
+          <strong>Important:</strong> Prescriptions are permanent and cannot be modified or deleted
+          once issued.
+        </p>
+
+        <p class="modal-review-sub">Please review the prescribed medicines below:</p>
+
+        <div class="modal-items-summary">
+          @for (item of items.controls; track $index) {
+            <div class="summary-item">
+              <div class="summary-top">
+                <strong class="summary-medicine">{{ item.controls.medicine.value.trim() }}</strong>
+                <span class="summary-dosage">{{ item.controls.dosage.value.trim() }}</span>
+              </div>
+              <p class="summary-instructions">{{ item.controls.instructions.value.trim() }}</p>
+            </div>
+          }
+        </div>
+
+        @if (submitError()) {
+          <div class="card error-box inline-error" role="alert">
+            <p class="error">{{ submitError() }}</p>
+          </div>
+        }
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="button button-primary"
+            [disabled]="submitting()"
+            (click)="confirmCreatePrescription()"
+          >
+            @if (submitting()) {
+              Issuing prescription...
+            } @else {
+              Confirm & Issue Prescription
+            }
+          </button>
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="submitting()"
+            (click)="closeConfirmModal()"
+          >
+            Back to edit
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</main>
