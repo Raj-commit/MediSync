@@ -1,0 +1,133 @@
+<main class="container">
+  <div class="page-header">
+    <a routerLink="/patient" class="back-link">&larr; Back to Dashboard</a>
+    <h1>My Prescriptions</h1>
+    <p class="subtitle">Digital prescriptions issued by your attending doctors.</p>
+  </div>
+
+  @if (downloadError()) {
+    <div class="card error-box" role="alert">
+      <p class="error">{{ downloadError() }}</p>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="card state-box" aria-live="polite">
+      <p>Loading prescriptions...</p>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="card error-box" role="alert">
+      <p class="error">{{ error() }}</p>
+      <button
+        type="button"
+        class="button button-secondary"
+        (click)="loadPrescriptions(pagination().page)"
+      >
+        Try again
+      </button>
+    </div>
+  }
+
+  @if (!loading() && !error()) {
+    @if (prescriptions().length === 0) {
+      <div class="card empty-box">
+        <h2>No prescriptions yet</h2>
+        <p>You have no digital prescriptions issued by a doctor yet.</p>
+        <div class="empty-actions">
+          <a routerLink="/patient/appointments" class="button">My appointments</a>
+        </div>
+      </div>
+    } @else {
+      <div class="results-header">
+        <p class="results-count">
+          Showing {{ prescriptions().length }} of {{ pagination().total }}
+          {{ pagination().total === 1 ? 'prescription' : 'prescriptions' }}
+        </p>
+      </div>
+
+      <ul class="prescriptions-list" aria-label="Prescriptions list">
+        @for (item of prescriptions(); track item.id) {
+          <li class="card prescription-card">
+            <div class="prescription-header">
+              <div class="doctor-info">
+                <span class="doctor-label">Prescribing doctor:</span>
+                <h2 class="doctor-name">
+                  {{ item.doctor.name ? 'Dr. ' + item.doctor.name : 'Attending Doctor' }}
+                </h2>
+              </div>
+              <div class="prescription-meta">
+                <span class="issued-date">Issued: {{ formatDate(item.issuedDate) }}</span>
+                @if (item.pdfStatus === 'pending') {
+                  <span class="badge badge-pending">PDF pending</span>
+                }
+              </div>
+            </div>
+
+            <div class="prescription-body">
+              <h3 class="items-heading">Prescribed Medicines</h3>
+              <ul class="medicines-list" aria-label="Medicines list">
+                @for (med of item.items; track $index) {
+                  <li class="medicine-item">
+                    <div class="medicine-primary">
+                      <strong class="medicine-name">{{ med.medicine }}</strong>
+                      <span class="medicine-dosage">{{ med.dosage }}</span>
+                    </div>
+                    <p class="medicine-instructions">{{ med.instructions }}</p>
+                  </li>
+                }
+              </ul>
+            </div>
+
+            <div class="prescription-actions">
+              <button
+                type="button"
+                class="button button-download"
+                [disabled]="downloadingId() === item.id"
+                (click)="downloadPdf(item)"
+                [attr.aria-label]="
+                  'Download PDF for prescription issued on ' + formatDate(item.issuedDate)
+                "
+              >
+                @if (downloadingId() === item.id) {
+                  Downloading...
+                } @else {
+                  Download PDF
+                }
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+
+      @if (pagination().totalPages > 1) {
+        <nav class="pagination-nav" aria-label="Prescriptions pagination">
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page <= 1 || loading()"
+            (click)="onPageChange(pagination().page - 1)"
+            aria-label="Previous page"
+          >
+            &larr; Previous
+          </button>
+
+          <span class="page-indicator" aria-current="page">
+            Page {{ pagination().page }} of {{ pagination().totalPages }}
+          </span>
+
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="pagination().page >= pagination().totalPages || loading()"
+            (click)="onPageChange(pagination().page + 1)"
+            aria-label="Next page"
+          >
+            Next &rarr;
+          </button>
+        </nav>
+      }
+    }
+  }
+</main>

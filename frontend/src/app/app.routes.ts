@@ -14,18 +14,14 @@ export const routes: Routes = [
     path: 'patient/doctors',
     canActivate: [roleGuard('patient')],
     loadComponent: () =>
-      import('./features/appointments/doctor-search/doctor-search').then(
-        (m) => m.DoctorSearch,
-      ),
+      import('./features/appointments/doctor-search/doctor-search').then((m) => m.DoctorSearch),
     title: 'Find a doctor | MediSync',
   },
   {
     path: 'patient/doctors/:id',
     canActivate: [roleGuard('patient')],
     loadComponent: () =>
-      import('./features/appointments/doctor-booking/doctor-booking').then(
-        (m) => m.DoctorBooking,
-      ),
+      import('./features/appointments/doctor-booking/doctor-booking').then((m) => m.DoctorBooking),
     title: 'Book appointment | MediSync',
   },
   {
@@ -41,19 +37,24 @@ export const routes: Routes = [
     path: 'patient/profile',
     canActivate: [roleGuard('patient')],
     loadComponent: () =>
-      import('./features/patient/patient-profile/patient-profile').then(
-        (m) => m.PatientProfile,
-      ),
+      import('./features/patient/patient-profile/patient-profile').then((m) => m.PatientProfile),
     title: 'Patient profile | MediSync',
   },
   {
     path: 'patient/records',
     canActivate: [roleGuard('patient')],
     loadComponent: () =>
-      import('./features/patient/patient-records/patient-records').then(
-        (m) => m.PatientRecords,
-      ),
+      import('./features/patient/patient-records/patient-records').then((m) => m.PatientRecords),
     title: 'My medical records | MediSync',
+  },
+  {
+    path: 'patient/prescriptions',
+    canActivate: [roleGuard('patient')],
+    loadComponent: () =>
+      import('./features/patient/patient-prescriptions/patient-prescriptions').then(
+        (m) => m.PatientPrescriptions,
+      ),
+    title: 'Prescriptions | MediSync',
   },
   {
     path: 'patient',
@@ -72,6 +73,15 @@ export const routes: Routes = [
         (m) => m.DoctorAppointments,
       ),
     title: 'My appointments | MediSync',
+  },
+  {
+    path: 'doctor/appointments/:id/prescription',
+    canActivate: [roleGuard('doctor')],
+    loadComponent: () =>
+      import('./features/doctor/doctor-prescription/doctor-prescription').then(
+        (m) => m.DoctorPrescription,
+      ),
+    title: 'Prescription | MediSync',
   },
   {
     path: 'doctor/patient-records/:patientId',
@@ -93,9 +103,7 @@ export const routes: Routes = [
     path: 'doctor/profile',
     canActivate: [roleGuard('doctor')],
     loadComponent: () =>
-      import('./features/doctor/doctor-profile/doctor-profile').then(
-        (m) => m.DoctorProfile,
-      ),
+      import('./features/doctor/doctor-profile/doctor-profile').then((m) => m.DoctorProfile),
     title: 'Doctor profile | MediSync',
   },
   {
