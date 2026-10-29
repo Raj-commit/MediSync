@@ -1,6 +1,7 @@
 const express = require('express');
 const appointmentController = require('../controllers/appointmentController');
 const chatController = require('../controllers/chatController');
+const videoController = require('../controllers/videoController');
 const { authenticate } = require('../middleware/auth');
 const { requireRole } = require('../middleware/requireRole');
 
@@ -53,6 +54,19 @@ router.get(
   authenticate,
   requireRole('patient', 'doctor'),
   chatController.getMessages
+);
+
+// GET /api/v1/appointments/:id/video
+// Video call status, session metadata, and ICE server configuration.
+// Order of checks (AGENTS.md section 3 rule 4):
+// 1. authenticate: checks valid JWT and loads req.user from DB
+// 2. requireRole: patients and doctors (admins receive 403 FORBIDDEN)
+// 3. videoController.getVideoStatus: checks appointmentId, ownership (404 for strangers), and status
+router.get(
+  '/:id/video',
+  authenticate,
+  requireRole('patient', 'doctor'),
+  videoController.getVideoStatus
 );
 
 module.exports = router;

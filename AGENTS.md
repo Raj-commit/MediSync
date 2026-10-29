@@ -107,6 +107,7 @@ Proposed endpoints (prefix `/api/v1`, change by editing this file in a PR):
 - `POST /auth/register`, `POST /auth/login`, `GET /auth/me`
 - `GET|PUT /users/me`, `GET /doctors`, `GET /doctors/:id/availability`, `PUT /doctors/me/availability`
 - `POST|GET /appointments`, `PATCH /appointments/:id`
+- `GET /appointments/:id/video`
 - `GET /appointments/:id/messages` (live messages over Socket.IO)
 - `GET /notifications`, `PATCH /notifications/:id/read`
 - `GET /records/me`, `GET /records/patient/:patientId`, `POST /records/patient/:patientId/entries`

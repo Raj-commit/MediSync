@@ -2,14 +2,14 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-29  by: Hitman0137
+Last updated: 2026-10-29  by: Uday Raj
 
 ## Current work
 
-- Branch: `feature/chat-ui`
-- Feature: chat (UI done, frontend)
-- Last thing finished: FR-12 (Chat, UC-08) frontend implementation: `/appointments/:id/chat` route guarded by roleGuard('patient', 'doctor'), Socket.IO live messaging (join_chat, send_message, new_message broadcast) with socket.io-client, read-only consultation history for completed appointments, connection status indicator pill, sequence deduplication, reconnect catch-up (afterSeq query), direct Chat button on appointment cards for confirmed/completed appointments, and 180 passing tests across 28 test suites in frontend
-- Next step: Open PR for feature/chat-ui into main
+- Branch: `feature/video-consultation-api`
+- Feature: video consultation (API done, backend)
+- Last thing finished: FR-11 (Video Consultation, UC-07) backend implementation: VideoSession model and lifecycle service, ICE server config (`STUN_SERVERS`, `TURN_SERVERS`), REST endpoint `GET /api/v1/appointments/:id/video`, Socket.IO video signaling handlers (`join_video`, `relay_offer`, `relay_answer`, `relay_candidate`, `leave_video`), waiting room and initiator management, 2-participant room limit (`ROOM_FULL`), second-tab guard (`ALREADY_CONNECTED`), WebRTC payload size limits (64 KB SDP, 2 KB candidate), signaling flood protection (30 events per 3s), live account deactivation check, appointment status change termination, and 23 integration tests passing in Jest (263/263 total tests passing)
+- Next step: Open PR for feature/video-consultation-api into main; start feature/video-consultation-ui
 - Blockers or open questions: none
 
 ## Feature status
@@ -26,7 +26,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 6 | appointment-management | done | done | Uday Raj (API), Riyank(UI) | Merged in PR #23 (API) and PR #26 (UI). UI at /patient/appointments and /doctor/appointments with cancel, reschedule, accept, reject, complete, full Vitest coverage |
 | 7 | notifications | done | done | Hitanshu (API), Riyank (UI) | API merged. UI at /notifications with filters, pagination, mark as read, appointment links, navbar bell with badge, visibility-aware polling, full Vitest coverage |
 | 8 | chat | done | done | Alis (API), Hitman0137 (UI) | FR-12 (UC-08). Shared /appointments/:id/chat route, Socket.IO live delivery, history pagination, cards integration, 180 tests passing |
-| 9 | video-consultation | not started | not started | | |
+| 9 | video-consultation | done | not started | Uday Raj (API) | FR-11 (UC-07) WebRTC signaling over Socket.IO, VideoSession lifecycle, ICE server config, payload limits, flood protection, 23 integration tests |
 | 10 | medical-records | not started | not started | | |
 | 11 | prescriptions | not started | not started | | |
 | 12 | prescription-pdf | done | n/a | Uday Raj | Merged in PR #17. Django endpoint POST /api/prescriptions/pdf with ReportLab, timing-safe X-Service-Key check, escaping, and tests |
@@ -118,6 +118,14 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-29 | Server-confirmed message sending (Choice c1): composer locks input and sends `send_message`; message is displayed upon server acknowledgement or `new_message` broadcast; on error, textarea text is preserved and server error message is displayed as written | Prevents optimistic ghost messages, race conditions, and accidental data loss during network hiccups |
 | 2026-10-29 | Reconnect catch-up: on socket reconnect after a disconnect, automatically joins the room again and queries `GET /api/v1/appointments/:id/messages?afterSeq=<maxSeq>` | Guarantees no missed messages during temporary socket drops without fetching full history or creating duplicates |
 | 2026-10-29 | Socket dependency: `socket.io-client@^4.8.1` matching backend Socket.IO v4 server version | Required for WebSocket transport and bi-directional real-time chat delivery |
+| 2026-10-29 | Video consultation access window: joining allowed only when appointment status is `confirmed` and `now` is between 10 minutes before `dateTime` and 60 minutes after `endTime`. Earlier/later access returns `canJoin: false` with explanation on REST and `WINDOW_NOT_OPEN` / `WINDOW_CLOSED` on socket | Ensures calls only take place during scheduled consultation hours with reasonable buffer for early arrival and doctor overrun |
+| 2026-10-29 | Anti-enumeration for video endpoints: `GET /api/v1/appointments/:id/video` and `join_video` return 404 `NOT_FOUND` if appointment does not exist, user is not the owning patient or doctor, or appointment is `requested` or `cancelled`. Admins receive 403 `FORBIDDEN` | Prevents unauthorized users or attackers from discovering valid appointment IDs or timing |
+| 2026-10-29 | ICE server configuration via API: `GET /api/v1/appointments/:id/video` and `join_video` acknowledgement return `iceServers` configured via env vars `STUN_SERVERS` (default `stun:stun.l.google.com:19302`), `TURN_SERVERS`, `TURN_USERNAME`, `TURN_CREDENTIAL`. Credentials never hardcoded in frontend or committed | Complies with PROGRESS.md 2026-10-22 decision and AGENTS.md security guidelines |
+| 2026-10-29 | Socket.IO video signaling room & 2-participant limit: room `video:<appointmentId>` holds strictly at most 2 participants. Third participant rejected with `ROOM_FULL`. Second tab / connection by the same user rejected with `ALREADY_CONNECTED` | Strict 1-on-1 private doctor-patient consultation guarantee; prevents multi-tab signaling conflicts |
+| 2026-10-29 | Waiting room & initiator coordination: First participant receives `{ isWaiting: true, isInitiator: false }`. Second participant arrival starts session, receives `{ isWaiting: false, isInitiator: true }`, and server emits `peer_joined` to first participant to initiate WebRTC offer | Eliminates WebRTC signaling glare (both peers offering simultaneously) and provides clear waiting room UX |
+| 2026-10-29 | WebRTC signaling payload size limits & flood protection: SDP strings capped at 64 KB, ICE candidate strings capped at 2 KB (`VALIDATION_ERROR`). Signaling flood limit capped at 30 events per 3 seconds per user (`RATE_LIMITED`). Unexpected payload keys rejected | Hardens server against DoS and memory exhaustion without external dependencies |
+| 2026-10-29 | VideoSession lifecycle & disconnect vs explicit end: Unique session per appointment. `startTime` recorded when 2nd participant arrives. Temporary disconnect records `endTime` with `endedReason: 'disconnected'`; rejoin within window clears `endTime`. Explicit leave (`leave_video`) records `endTime`, sets `isExplicitlyEnded: true`, emits `call_ended` to room, and permanently closes rejoining (`CALL_ALREADY_ENDED`) | Accurately tracks actual consultation duration, accommodates network drops / page reloads, and prevents zombie calls after consultation is concluded |
+| 2026-10-29 | In-call appointment cancellation / completion termination: If appointment status changes to `completed` or `cancelled` during a call, server immediately blocks signaling, emits `call_ended`, and dissolves the room | Enforces backend ownership of clinical status over active calls |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
@@ -128,6 +136,8 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 - Added optional `appointment` (ObjectId reference to `Appointment`) to the `Notification` model to allow direct linking between notifications and their associated appointments.
 - Stored `endTime` (Date) and `slot` (ObjectId reference to `Slot`) on the `Appointment` model to maintain slot lifecycle integrity and easy duration queries.
 - Added `chatSeq` (Number, default 0) to the `Appointment` model to maintain an atomic counter for consultation chat message sequence numbers.
+- Added `endedReason` (String enum: `['call_ended', 'disconnected']`) and `isExplicitlyEnded` (Boolean, default false) to the `VideoSession` model to differentiate temporary disconnects from explicit call endings and prevent rejoining terminated calls.
+- Added env variables `STUN_SERVERS` (default `stun:stun.l.google.com:19302`), `TURN_SERVERS`, `TURN_USERNAME`, and `TURN_CREDENTIAL` for WebRTC ICE server configuration.
 
 ## Known issues
 
