@@ -1,18 +1,73 @@
 // frontend/src/app/features/video/video.spec.ts
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { fakeJwt } from '../../core/auth/testing';
+import { SocketService } from '../../core/sockets/socket.service';
 import { MediaDevicesService } from '../../core/video/media-devices.service';
 import { VideoStatusResponse } from '../../core/video/video.models';
 import { VideoService } from '../../core/video/video.service';
 import { VideoPage } from './video';
 
-describe('VideoPage (Pre-call Setup & Preview)', () => {
+class MockSocketService {
+  connect = vi.fn();
+  disconnect = vi.fn();
+  isConnected = vi.fn().mockReturnValue(true);
+  status = signal('connected');
+  emitWithAck = vi.fn().mockResolvedValue({ success: true });
+
+  private handlers: Record<string, ((data: unknown) => void)[]> = {};
+
+  on<T>(event: string): Observable<T> {
+    return new Observable<T>((sub) => {
+      if (!this.handlers[event]) {
+        this.handlers[event] = [];
+      }
+      const handler = (data: unknown) => sub.next(data as T);
+      this.handlers[event].push(handler);
+      return () => {
+        this.handlers[event] = this.handlers[event].filter((h) => h !== handler);
+      };
+    });
+  }
+
+  trigger(event: string, payload: unknown) {
+    const list = this.handlers[event] || [];
+    for (const h of list) {
+      h(payload);
+    }
+  }
+}
+
+class MockRTCPeerConnection {
+  connectionState = 'new';
+  remoteDescription: { type: string; sdp: string } | null = null;
+  localDescription: { type: string; sdp: string } | null = null;
+  onicecandidate: ((ev: unknown) => void) | null = null;
+  ontrack: ((ev: unknown) => void) | null = null;
+  onconnectionstatechange: (() => void) | null = null;
+
+  addTrack = vi.fn();
+  createOffer = vi.fn().mockResolvedValue({ type: 'offer', sdp: 'fake-offer-sdp' });
+  createAnswer = vi.fn().mockResolvedValue({ type: 'answer', sdp: 'fake-answer-sdp' });
+  setLocalDescription = vi.fn().mockImplementation((desc) => {
+    this.localDescription = desc;
+    return Promise.resolve();
+  });
+  setRemoteDescription = vi.fn().mockImplementation((desc) => {
+    this.remoteDescription = desc;
+    return Promise.resolve();
+  });
+  addIceCandidate = vi.fn().mockResolvedValue(undefined);
+  close = vi.fn();
+}
+
+describe('VideoPage (Pre-call Setup, Signaling, and Live Consultation)', () => {
   let component: VideoPage;
   let fixture: ComponentFixture<VideoPage>;
   let mockVideoService: {
@@ -22,10 +77,13 @@ describe('VideoPage (Pre-call Setup & Preview)', () => {
     isSecureContext: ReturnType<typeof vi.fn>;
     isMediaDevicesSupported: ReturnType<typeof vi.fn>;
     getUserMedia: ReturnType<typeof vi.fn>;
+    createPeerConnection: ReturnType<typeof vi.fn>;
     stopMediaStream: ReturnType<typeof vi.fn>;
     toggleAudio: ReturnType<typeof vi.fn>;
     toggleVideo: ReturnType<typeof vi.fn>;
   };
+  let mockSocketService: MockSocketService;
+  let mockPc: MockRTCPeerConnection;
   let authServiceStub: {
     user: ReturnType<typeof vi.fn>;
     role: ReturnType<typeof vi.fn>;
@@ -69,6 +127,7 @@ describe('VideoPage (Pre-call Setup & Preview)', () => {
   }
 
   beforeEach(async () => {
+    mockPc = new MockRTCPeerConnection();
     mockVideoService = {
       getVideoStatus: vi.fn().mockReturnValue(of(mockSuccessResponse)),
     };
@@ -77,10 +136,13 @@ describe('VideoPage (Pre-call Setup & Preview)', () => {
       isSecureContext: vi.fn().mockReturnValue(true),
       isMediaDevicesSupported: vi.fn().mockReturnValue(true),
       getUserMedia: vi.fn().mockResolvedValue(createMockStream()),
+      createPeerConnection: vi.fn().mockReturnValue(mockPc),
       stopMediaStream: vi.fn(),
       toggleAudio: vi.fn().mockReturnValue(false),
       toggleVideo: vi.fn().mockReturnValue(false),
     };
+
+    mockSocketService = new MockSocketService();
 
     authServiceStub = {
       user: vi.fn().mockReturnValue({ id: 'user-1', name: 'John Patient', role: 'patient' }),
@@ -96,6 +158,7 @@ describe('VideoPage (Pre-call Setup & Preview)', () => {
         provideRouter([]),
         { provide: VideoService, useValue: mockVideoService },
         { provide: MediaDevicesService, useValue: mockMediaDevicesService },
+        { provide: SocketService, useValue: mockSocketService },
         { provide: AuthService, useValue: authServiceStub },
         {
           provide: ActivatedRoute,
@@ -249,29 +312,348 @@ describe('VideoPage (Pre-call Setup & Preview)', () => {
     expect(component.isVideoOff()).toBe(true);
   });
 
-  it('stops media stream tracks on component destruction to release hardware', async () => {
+  it('enters waiting state when joining as the first participant (isWaiting: true)', async () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const stream = component.localStream();
-    expect(stream).toBeTruthy();
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: true,
+      isInitiator: false,
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    });
 
-    fixture.destroy();
-    expect(mockMediaDevicesService.stopMediaStream).toHaveBeenCalledWith(stream);
-  });
+    await component.joinCall();
 
-  it('transitions hasJoinedCall to true when Join call is clicked', async () => {
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(component.hasJoinedCall()).toBe(false);
-
-    component.joinCall();
+    expect(mockSocketService.connect).toHaveBeenCalled();
+    expect(mockSocketService.emitWithAck).toHaveBeenCalledWith('join_video', {
+      appointmentId: 'appt-100',
+    });
     expect(component.hasJoinedCall()).toBe(true);
+    expect(component.callState()).toBe('waiting');
 
     fixture.detectChanges();
     const element: HTMLElement = fixture.nativeElement;
-    expect(element.textContent).toContain('Connecting to consultation room...');
+    expect(element.textContent).toContain('Waiting for the other participant to join...');
+  });
+
+  it('initiates WebRTC offer when designated as initiator (isInitiator: true)', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: false,
+      isInitiator: true,
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    });
+
+    await component.joinCall();
+
+    expect(mockMediaDevicesService.createPeerConnection).toHaveBeenCalled();
+    expect(mockPc.addTrack).toHaveBeenCalled();
+    expect(mockPc.createOffer).toHaveBeenCalled();
+    expect(mockPc.setLocalDescription).toHaveBeenCalledWith({
+      type: 'offer',
+      sdp: 'fake-offer-sdp',
+    });
+    expect(mockSocketService.emitWithAck).toHaveBeenCalledWith('relay_offer', {
+      appointmentId: 'appt-100',
+      type: 'offer',
+      sdp: 'fake-offer-sdp',
+    });
+  });
+
+  it('handles peer_joined event by updating status to connecting', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: true,
+      isInitiator: false,
+      iceServers: [],
+    });
+
+    await component.joinCall();
+    expect(component.callState()).toBe('waiting');
+
+    mockSocketService.trigger('peer_joined', {
+      appointmentId: 'appt-100',
+      peer: { id: 'doc-200', name: 'Dr. Jane Smith', role: 'doctor' },
+      isInitiator: false,
+    });
+
+    expect(component.callState()).toBe('connecting');
+  });
+
+  it('answers incoming offer: sets remote description, flushes queued candidates, and sends relay_answer', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: true,
+      isInitiator: false,
+      iceServers: [],
+    });
+
+    await component.joinCall();
+
+    // 1. Candidate arrives early before remote description is set
+    mockSocketService.trigger('receive_candidate', {
+      appointmentId: 'appt-100',
+      candidate: { candidate: 'cand-early', sdpMid: '0', sdpMLineIndex: 0 },
+      sender: { id: 'doc-200', name: 'Dr. Jane Smith' },
+    });
+    expect(mockPc.addIceCandidate).not.toHaveBeenCalled();
+
+    // 2. Offer arrives
+    mockSocketService.trigger('receive_offer', {
+      appointmentId: 'appt-100',
+      offer: { type: 'offer', sdp: 'remote-offer-sdp' },
+      sender: { id: 'doc-200', name: 'Dr. Jane Smith', role: 'doctor' },
+    });
+
+    // Wait for async handler to resolve
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    fixture.detectChanges();
+
+    expect(mockPc.setRemoteDescription).toHaveBeenCalledWith({
+      type: 'offer',
+      sdp: 'remote-offer-sdp',
+    });
+    // Early candidate flushed
+    expect(mockPc.addIceCandidate).toHaveBeenCalledWith({
+      candidate: 'cand-early',
+      sdpMid: '0',
+      sdpMLineIndex: 0,
+    });
+    expect(mockPc.createAnswer).toHaveBeenCalled();
+    expect(mockPc.setLocalDescription).toHaveBeenCalledWith({
+      type: 'answer',
+      sdp: 'fake-answer-sdp',
+    });
+    expect(mockSocketService.emitWithAck).toHaveBeenCalledWith('relay_answer', {
+      appointmentId: 'appt-100',
+      type: 'answer',
+      sdp: 'fake-answer-sdp',
+    });
+  });
+
+  it('initiator processes receive_answer and sets remote description', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: false,
+      isInitiator: true,
+      iceServers: [],
+    });
+
+    await component.joinCall();
+
+    mockSocketService.trigger('receive_answer', {
+      appointmentId: 'appt-100',
+      answer: { type: 'answer', sdp: 'remote-answer-sdp' },
+      sender: { id: 'user-2', name: 'Patient', role: 'patient' },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    fixture.detectChanges();
+
+    expect(mockPc.setRemoteDescription).toHaveBeenCalledWith({
+      type: 'answer',
+      sdp: 'remote-answer-sdp',
+    });
+  });
+
+  it('immediately applies ICE candidate if remote description is already present', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: false,
+      isInitiator: true,
+      iceServers: [],
+    });
+
+    await component.joinCall();
+    mockPc.remoteDescription = { type: 'answer', sdp: 'sdp' };
+
+    mockSocketService.trigger('receive_candidate', {
+      appointmentId: 'appt-100',
+      candidate: { candidate: 'cand-ready', sdpMid: '0', sdpMLineIndex: 0 },
+      sender: { id: 'user-2', name: 'Patient' },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    fixture.detectChanges();
+
+    expect(mockPc.addIceCandidate).toHaveBeenCalledWith({
+      candidate: 'cand-ready',
+      sdpMid: '0',
+      sdpMLineIndex: 0,
+    });
+  });
+
+  it('relays local ICE candidates when pc.onicecandidate fires', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: false,
+      isInitiator: true,
+      iceServers: [],
+    });
+
+    await component.joinCall();
+
+    expect(mockPc.onicecandidate).toBeTruthy();
+    mockPc.onicecandidate!({
+      candidate: {
+        candidate: 'candidate:1 1 UDP 2130706431 192.168.1.1 50000 typ host',
+        sdpMid: '0',
+        sdpMLineIndex: 0,
+        usernameFragment: 'ufrag',
+      },
+    });
+
+    expect(mockSocketService.emitWithAck).toHaveBeenCalledWith('relay_candidate', {
+      appointmentId: 'appt-100',
+      candidate: {
+        candidate: 'candidate:1 1 UDP 2130706431 192.168.1.1 50000 typ host',
+        sdpMid: '0',
+        sdpMLineIndex: 0,
+        usernameFragment: 'ufrag',
+      },
+    });
+  });
+
+  it('binds remote stream and updates state to connected when ontrack fires', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: false,
+      isInitiator: true,
+      iceServers: [],
+    });
+
+    await component.joinCall();
+
+    const remoteStream = createMockStream();
+    mockPc.ontrack!({
+      streams: [remoteStream],
+      track: createMockTrack('video'),
+    });
+
+    expect(component.remoteStream()).toBe(remoteStream);
+    expect(component.callState()).toBe('connected');
+  });
+
+  it('updates state to peer_left when peer_left event is received', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: false,
+      isInitiator: true,
+      iceServers: [],
+    });
+
+    await component.joinCall();
+
+    mockSocketService.trigger('peer_left', {
+      appointmentId: 'appt-100',
+      peer: { id: 'doc-200', name: 'Dr. Jane Smith' },
+    });
+
+    expect(component.callState()).toBe('peer_left');
+  });
+
+  it('handles call_ended event: closes connection and releases media devices', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: false,
+      isInitiator: true,
+      iceServers: [],
+    });
+
+    await component.joinCall();
+
+    mockSocketService.trigger('call_ended', {
+      appointmentId: 'appt-100',
+      reason: 'call_ended',
+      message: 'The consultation has ended',
+    });
+
+    expect(component.callState()).toBe('ended');
+    expect(mockPc.close).toHaveBeenCalled();
+    expect(mockMediaDevicesService.stopMediaStream).toHaveBeenCalled();
+  });
+
+  it('displays connection failure if join_video ack returns success: false (e.g. ROOM_FULL)', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: false,
+      code: 'ROOM_FULL',
+      message: 'Video consultation room is full',
+    });
+
+    await component.joinCall();
+
+    expect(component.callState()).toBe('failed');
+    expect(component.callErrorMessage()).toBe('Video consultation room is full');
+
+    fixture.detectChanges();
+    const element: HTMLElement = fixture.nativeElement;
+    expect(element.textContent).toContain('Connection Problem');
+    expect(element.textContent).toContain('Video consultation room is full');
+  });
+
+  it('leaves call cleanly, stopping tracks and emitting leave_video with isExplicit: true', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    mockSocketService.emitWithAck.mockResolvedValueOnce({
+      success: true,
+      appointmentId: 'appt-100',
+      isWaiting: false,
+      isInitiator: true,
+      iceServers: [],
+    });
+
+    await component.joinCall();
+
+    await component.leaveCall();
+
+    expect(mockSocketService.emitWithAck).toHaveBeenCalledWith('leave_video', {
+      appointmentId: 'appt-100',
+      isExplicit: true,
+    });
+    expect(mockPc.close).toHaveBeenCalled();
+    expect(mockMediaDevicesService.stopMediaStream).toHaveBeenCalled();
+    expect(component.callState()).toBe('ended');
   });
 });
