@@ -2,14 +2,14 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-29  by: Alis
+Last updated: 2026-10-29  by: Riyank
 
 ## Current work
 
-- Branch: `feature/video-consultation-ui`
-- Feature: video consultation (UI done, frontend)
-- Last thing finished: FR-11 (Video Consultation, UC-07) frontend implementation: Shared route `/appointments/:id/video` guarded by `roleGuard('patient', 'doctor')`, pre-call hardware verification (camera/mic permissions, secure context, appointment call window), preview screen with audio/video toggles, explicit "Join call" entry, Socket.IO WebRTC signaling orchestration (`join_video`, `relay_offer`, `relay_answer`, `relay_candidate`, `peer_joined`, `peer_left`, `call_ended`), early ICE candidate buffer and flush, remote video presentation with PiP local stream, responsive floating toolbar (mute, camera toggle, leave call), automatic socket reconnection recovery, "Join video" buttons on patient and doctor appointment cards, full track/connection cleanup on unload/destroy, and 24 Vitest unit tests (221/221 total tests passing)
-- Next step: Open PR for feature/video-consultation-ui into main; begin FR-13 / medical records or next feature
+- Branch: `feature/medical-records-api`
+- Feature: medical records (API done, backend)
+- Last thing finished: FR-13 (Medical Records, UC-09) backend implementation: `MedicalRecord` model with embedded entries and unique index `{ patient: 1 }`, atomic upsert on first entry, pure read-only virtual empty record for patients with zero entries, calendar-derived `calculateAge` dynamically derived from `dateOfBirth` (never stored), zero PII exposure (`dateOfBirth`, `address`, `phone`, `email`, `passwordHash` strictly excluded from records responses), doctor details restricted strictly to `{ id, name }`, `GET /api/v1/records/me` (patient only), `GET /api/v1/records/patient/:patientId` (doctor only with confirmed/completed appointment), `POST /api/v1/records/patient/:patientId/entries` (doctor only with 201 Created), anti-enumeration (identical 404 NOT_FOUND for non-existent patient, non-patient user, or doctor without qualifying appointment), `Cache-Control: no-store` header on all responses, zero medical logging, and comprehensive integration tests in `backend/tests/records.test.js`
+- Next step: Open PR for feature/medical-records-api into main; begin feature/medical-records-ui (FR-13 frontend)
 - Blockers or open questions: none
 
 ## Feature status
@@ -27,7 +27,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 7 | notifications | done | done | Hitanshu (API), Riyank (UI) | API merged. UI at /notifications with filters, pagination, mark as read, appointment links, navbar bell with badge, visibility-aware polling, full Vitest coverage |
 | 8 | chat | done | done | Alis (API), Hitman0137 (UI) | FR-12 (UC-08). Shared /appointments/:id/chat route, Socket.IO live delivery, history pagination, cards integration, 180 tests passing |
 | 9 | video-consultation | done | done | Uday Raj (API), Alis (UI) | FR-11 (UC-07) WebRTC signaling over Socket.IO, VideoSession lifecycle, ICE server config. Shared /appointments/:id/video UI with pre-call preview, signaling, auto-reconnect, cards integration, 24 Vitest tests |
-| 10 | medical-records | not started | not started | | |
+| 10 | medical-records | done | not started | Riyank (API) | FR-13 (UC-09). GET /records/me, GET /records/patient/:patientId, POST /records/patient/:patientId/entries with atomic upsert, age derivation, zero PII leak, anti-enumeration, and no-store caching |
 | 11 | prescriptions | not started | not started | | |
 | 12 | prescription-pdf | done | n/a | Uday Raj | Merged in PR #17. Django endpoint POST /api/prescriptions/pdf with ReportLab, timing-safe X-Service-Key check, escaping, and tests |
 | 13 | symptom-checker | not started | not started | | |
@@ -131,6 +131,11 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-29 | Dropped connections & auto-reconnect (Choice 3): reactive effect monitors Socket.IO status, shows reconnecting banner, preserves local media stream, and automatically re-emits `join_video` upon reconnection with fallback "Rejoin call" button; cleans up tracks and connection on explicit leave, destroy, and `window:beforeunload` | Robust recovery against transient network drops without restarting media hardware or losing stream context |
 | 2026-10-29 | Early ICE candidate queue buffering: ICE candidates arriving via `receive_candidate` before `setRemoteDescription()` are buffered in `queuedCandidates` and flushed immediately after remote description is applied | Eliminates WebRTC timing race conditions and signaling negotiation failures |
 | 2026-10-29 | Appointment cards "Join video" button: displayed on `/patient/appointments` and `/doctor/appointments` cards strictly when status is `confirmed` and current time is within call window (10m before start to 60m after end) via `VideoService.isWithinCallWindow()` | Prevents navigation to invalid or closed video sessions and integrates seamlessly into existing card actions |
+| 2026-10-29 | Doctor medical record access: Allowed when appointment status is `confirmed` or `completed` (preserving access for follow-up care). Status `requested` or `cancelled` returns 404 `NOT_FOUND` | Aligns with chat access rules and enables continuity of care for completed consults while blocking premature/cancelled access |
+| 2026-10-29 | Lazy record creation & atomic upsert: `MedicalRecord` document created on first entry via `findOneAndUpdate` with `$setOnInsert: { patient }` and `$push: { entries }` under unique index `{ patient: 1 }`. GET requests are strictly read-only and return a virtual empty record `{ patient, entries: [], pagination: ... }` | Prevents empty record pollution in DB; prevents race conditions and duplicate record documents under concurrent first entries |
+| 2026-10-29 | Patient summary & zero PII leak (NFR-08): Responses return `{ patient: { id, name, age } }`. `age` is calendar-derived from `dateOfBirth` and never stored. `dateOfBirth`, `address`, `phone`, `email`, and `passwordHash` are never exposed in records responses. Doctor detail is restricted to `{ id, name }`. Responses set `Cache-Control: no-store`. Zero logging of diagnosis/notes | Enforces strict medical data privacy and compliance with AGENTS.md sections 5 & 8 |
+| 2026-10-29 | Anti-enumeration on patient record endpoints: When a target patient does not exist, is not role `patient`, or doctor shares no qualifying appointment, identical 404 `NOT_FOUND` ("Patient not found") is returned | Prevents malicious callers from probing whether an ID corresponds to a registered patient |
+| 2026-10-29 | Medical record entry validation: `diagnosis` required trimmed string (1–300 chars), `notes` required trimmed string (1–3,000 chars). Injected client fields (`updatedAt`, `updatedBy`, `id`) and bracketed/unknown queries strictly rejected with 400 `VALIDATION_ERROR` | Guarantees data integrity, author authenticity, and prevents schema pollution |
 
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
