@@ -16,4 +16,15 @@ router.get(
   recordController.getOwnRecord
 );
 
+// Doctor reads record of a patient they have an appointment with
+// 1. authenticate: checks valid JWT
+// 2. requireRole: doctors only (patients and admins rejected with 403 FORBIDDEN)
+// 3. getPatientRecordByDoctor: checks confirmed/completed appointment and ownership
+router.get(
+  '/patient/:patientId',
+  authenticate,
+  requireRole('doctor'),
+  recordController.getPatientRecordByDoctor
+);
+
 module.exports = router;
