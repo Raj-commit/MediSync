@@ -1,5 +1,6 @@
 const express = require('express');
 const appointmentController = require('../controllers/appointmentController');
+const chatController = require('../controllers/chatController');
 const { authenticate } = require('../middleware/auth');
 const { requireRole } = require('../middleware/requireRole');
 
@@ -39,6 +40,19 @@ router.patch(
   authenticate,
   requireRole('patient', 'doctor'),
   appointmentController.manageAppointment
+);
+
+// GET /api/v1/appointments/:id/messages
+// Chat message history for a confirmed or completed appointment.
+// Order of checks (AGENTS.md section 3 rule 4):
+// 1. authenticate: checks valid JWT and loads req.user from DB
+// 2. requireRole: patients and doctors (admins receive 403 FORBIDDEN)
+// 3. chatController.getMessages: checks appointmentId, ownership (404 for strangers), and status
+router.get(
+  '/:id/messages',
+  authenticate,
+  requireRole('patient', 'doctor'),
+  chatController.getMessages
 );
 
 module.exports = router;

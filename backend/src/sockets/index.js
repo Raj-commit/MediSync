@@ -2,6 +2,7 @@ const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const { User } = require('../models/User');
 const { verifyToken } = require('../utils/token');
+const { registerChatHandlers } = require('./chat');
 
 let io = null;
 
@@ -59,6 +60,9 @@ function initSocket(server) {
     // Join a private room for this user so we can emit targeted notifications
     const userRoom = `user:${socket.user._id.toString()}`;
     socket.join(userRoom);
+
+    // Register consultation chat handlers (join_chat, send_message)
+    registerChatHandlers(io, socket);
 
     socket.on('disconnect', () => {
       // Socket disconnected
