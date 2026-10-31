@@ -6,18 +6,17 @@ Last updated: 2026-10-31  by: Alis
 
 ## Current work
 
-- Branch: `feature/symptom-checker-ai`
-- Feature: symptom-checker (Django microservice backend done)
-- Last thing finished: FR-17 (UC-12) AI symptom checker implementation in `ai-service/`:
-  - Pure, deterministic rule-based engine in `symptom_checker/engine.py` and knowledge base in `symptom_checker/rules.py` (no DB, no network, no random, no LLM for now);
-  - Red-flag detection for 8 emergency categories (chest pain, breathing difficulty, stroke signs, unconsciousness, severe allergic reaction, high fever with stiff neck, severe abdominal pain, coughing blood) with emergency notice prepended to assessment, urgency level set to `"emergency"`, priority over mild symptoms, and negation safeguard (`"no chest pain"` does not trigger);
-  - Multiple mild symptoms rule (3+ distinct canonical mild symptoms elevate routine urgency to `"urgent"` with 24-hour consultation guidance);
-  - Input normalisation (lowercase, strip punctuation, collapse whitespace) and synonym dictionary (e.g. `"high temperature"` -> `"fever"`);
-  - Fallback for unknown symptoms returning empty conditions list `[]`, `"routine"`, `"General Physician"`, and clinical assessment recommendation;
-  - Strict input validation in `symptom_checker/serializers.py` (1–10 items, 1–100 chars, no blank strings, reject unknown JSON keys with 400 `VALIDATION_ERROR`);
-  - Internal endpoint `POST /api/symptom-checker/check` in `symptom_checker/views.py` and `symptom_checker/urls.py` protected by timing-safe `ServiceKeyMiddleware`;
-  - Full test suite passing with 37 tests in `symptom_checker` (12 engine unit tests, 25 endpoint integration tests) and 60 total tests passing across `ai-service/`.
-- Next step: Open PR for `feature/symptom-checker-ai` into `main`; then start `feature/symptom-checker-api` (Express backend integration, validation, and storage).
+- Branch: `feature/symptom-checker-api`
+- Feature: symptom-checker (Express API done)
+- Last thing finished: FR-17 (UC-12) AI symptom checker Express API implementation in `backend/`:
+  - `SymptomCheckResult` model with indexed `patient`, `symptomsInput`, structured `aiAssessment` subdocument (`assessment`, `possibleConditions`, `urgencyLevel`, `suggestedSpecialisation`, `generalAdvice`, `disclaimer`), and indexed `checkedAt`;
+  - Input validation in `backend/src/utils/validateSymptomCheck.js` enforcing 1–10 symptoms, 1–100 characters per item, non-blank strings, strict key checking, and rejection of patient ID injection;
+  - Dedicated self-contained Django client in `backend/src/services/symptomCheckService.js` connecting to `POST /api/symptom-checker/check` with `X-Service-Key`, 5-second timeout (`AbortSignal.timeout(5000)`), 64 KiB streaming limit with early stream cancellation, response schema validation against booking-flow doctor catalogue, and mapping all failures to safe 502 `SYMPTOM_SERVICE_UNAVAILABLE`;
+  - `POST /api/v1/symptom-checks` authenticated patient endpoint with `Cache-Control: no-store`, returning HTTP 201 with camelCase `{ result: { id, symptoms, assessment, checkedAt } }`;
+  - `GET /api/v1/symptom-checks` patient history route with pagination (`page`, `limit`), sorted newest first (`checkedAt: -1`), and `Cache-Control: no-store`;
+  - Rate limiter `createSymptomCheckLimiter` in `backend/src/middleware/rateLimiters.js` enforcing 10 checks per 15 minutes per authenticated patient ID (`req.user.id`), returning 429 `TOO_MANY_REQUESTS`;
+  - Full automated test suite in `backend/tests/symptomChecks.test.js` covering 25 test scenarios across client, API, storage, and rate limiting.
+- Next step: Open PR for `feature/symptom-checker-api` into `main`; then start `feature/symptom-checker-ui` (Angular frontend patient UI).
 - Blockers or open questions: none
 
 ## Feature status
@@ -38,7 +37,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 10 | medical-records | done | done | Riyank (API), Uday Raj (UI) | FR-13 (UC-09). GET /records/me, GET /records/patient/:patientId, POST /records/patient/:patientId/entries with atomic upsert, age derivation, zero PII leak, anti-enumeration, and no-store caching. Separate patient and doctor routes, confirmation dialog, character counters, plain-text XSS defense, full Vitest coverage |
 | 11 | prescriptions | done | done | Alis (API), Uday Raj (UI) | FR-14, FR-15, FR-16 (UC-10, UC-11). POST /prescriptions, GET /prescriptions, GET /prescriptions/:id/pdf. Full frontend UI at /patient/prescriptions and /doctor/appointments/:id/prescription with PDF download, dynamic medicines FormArray, confirmation modal, 409 recovery, 287 frontend tests passing |
 | 12 | prescription-pdf | done | n/a | Uday Raj | Merged in PR #17. Django endpoint POST /api/prescriptions/pdf with ReportLab, timing-safe X-Service-Key check, escaping, and tests |
-| 13 | symptom-checker | in progress | not started | Alis (Django) | Django endpoint POST /api/symptom-checker/check complete with rule-based engine, red-flag detection, negation safeguard, and 37 tests passing. Express API and Angular UI next |
+| 13 | symptom-checker | done | not started | Alis (Django & API) | Django microservice and Express API complete with rule-based engine, red-flag detection, rate limiting, and result storage. Angular UI next |
 | 14 | admin-user-management | not started | not started | | |
 | 15 | polish-testing | not started | n/a | | |
 
@@ -170,6 +169,13 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-31 | Multiple mild symptoms threshold: 3 or more distinct canonical mild symptoms elevate urgency to 'urgent' with a 24-hour doctor consultation recommendation | Clinical escalation rule for complex multi-symptom presentations |
 | 2026-10-31 | Fallback on unknown symptoms: empty `possible_conditions: []`, `urgency_level: "routine"`, `suggested_specialisation: "General Physician"`, advising clinical evaluation | Informational safety; never hallucinate or invent diagnoses |
 | 2026-10-31 | Strict input limits: 1 to 10 symptom items, 1 to 100 characters per item, no blank strings, unknown keys rejected with 400 `VALIDATION_ERROR` | Microservice robustness and payload boundary enforcement |
+| 2026-10-31 | Express symptom checker endpoints: POST and GET /api/v1/symptom-checks for patient role only; doctors and admins receive 403 FORBIDDEN | Protects clinical access boundary and adheres to AGENTS.md section 5 & 6 |
+| 2026-10-31 | Dedicated Django client in symptomCheckService.js without modifying pdfService.js | Avoids regression risk to existing prescription PDF microservice |
+| 2026-10-31 | Strict input validation on POST /symptom-checks: 1-10 string items, 1-100 chars, no blank strings, unknown keys rejected, patient ID injection rejected | Blocks NoSQL injection and payload tampering |
+| 2026-10-31 | Safe Django call & 64 KiB streaming cap: fetch with 5s timeout, X-Service-Key header, and streaming reader cap (64 KiB) before JSON parsing | Protects Express memory and maps all Django errors/timeouts to 502 SYMPTOM_SERVICE_UNAVAILABLE |
+| 2026-10-31 | Explicit snake_case to camelCase mapping and storage: only assessment, possibleConditions, urgencyLevel, suggestedSpecialisation, generalAdvice, disclaimer persisted | Keeps MongoDB records and API output stable and immune to future LLM debug metadata |
+| 2026-10-31 | Rate limiting on POST /symptom-checks: 10 requests / 15 minutes keyed by req.user.id, returning 429 TOO_MANY_REQUESTS | Prevents denial of service and API abuse while isolating limits per authenticated patient |
+| 2026-10-31 | Cache-Control: no-store header on POST and GET /api/v1/symptom-checks with zero patient PII in responses | NFR-08 medical privacy compliance |
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
 - Added the optional env variable `ADMIN_PHONE` (default placeholder +910000000000), because the User model requires a phone for every user, including the admin.
