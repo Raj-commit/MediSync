@@ -114,7 +114,7 @@ Proposed endpoints (prefix `/api/v1`, change by editing this file in a PR):
 - `POST|GET /prescriptions`, `GET /prescriptions/:id/pdf`
 - `POST|GET /symptom-checks`
 - `GET /admin/users`, `PATCH /admin/users/:id`
-- Django (internal only): `POST /symptom-check`, `POST /prescriptions/pdf`
+- Django (internal only): `POST /api/symptom-checker/check`, `POST /api/prescriptions/pdf`
 
 Booking rule: a slot can never be double booked. Enforce it on the server (atomic update or unique index) and return `409 Conflict` when the slot is taken.
 

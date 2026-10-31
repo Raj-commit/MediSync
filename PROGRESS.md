@@ -2,20 +2,22 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-10-29  by: Alis
+Last updated: 2026-10-31  by: Alis
 
 ## Current work
 
-- Branch: `feature/prescriptions-ui`
-- Feature: prescriptions (UI done, frontend)
-- Last thing finished: FR-14, FR-16 (UC-10, UC-11) frontend implementation:
-  - PrescriptionsService with model types, 24-character hex ID validation, getPrescriptions, createPrescription, downloadPrescriptionPdf (Blob response), triggerBlobDownload with application/pdf validation, temporary anchor click, and immediate object URL revocation;
-  - Patient prescriptions view (/patient/prescriptions) protected by roleGuard('patient'), date/doctor display, medication items with dosages and pre-wrap instructions, loading/empty/error states, pagination, and Download PDF button with loading lock;
-  - Patient dashboard navigation button on /patient;
-  - Doctor prescription view (/doctor/appointments/:id/prescription) protected by roleGuard('doctor'), pre-validation of 24-hex appointment ID, existing prescription check via ?appointmentId=, dynamic medicine form array (1 to 50 items) with character counters (200/200/500), accessible confirmation modal dialog with permanent immutability warning, graceful 409 PRESCRIPTION_EXISTS recovery, pending PDF alert and on-demand retry;
-  - Doctor appointments card integration on /doctor/appointments adding "Prescribe" button for completed appointments;
-  - Full Vitest test suite passing (37 test files, 287 passing tests) and successful production build.
-- Next step: Open PR for feature/prescriptions-ui into main; start feature/symptom-checker-api (FR-17)
+- Branch: `feature/symptom-checker-ai`
+- Feature: symptom-checker (Django microservice backend done)
+- Last thing finished: FR-17 (UC-12) AI symptom checker implementation in `ai-service/`:
+  - Pure, deterministic rule-based engine in `symptom_checker/engine.py` and knowledge base in `symptom_checker/rules.py` (no DB, no network, no random, no LLM for now);
+  - Red-flag detection for 8 emergency categories (chest pain, breathing difficulty, stroke signs, unconsciousness, severe allergic reaction, high fever with stiff neck, severe abdominal pain, coughing blood) with emergency notice prepended to assessment, urgency level set to `"emergency"`, priority over mild symptoms, and negation safeguard (`"no chest pain"` does not trigger);
+  - Multiple mild symptoms rule (3+ distinct canonical mild symptoms elevate routine urgency to `"urgent"` with 24-hour consultation guidance);
+  - Input normalisation (lowercase, strip punctuation, collapse whitespace) and synonym dictionary (e.g. `"high temperature"` -> `"fever"`);
+  - Fallback for unknown symptoms returning empty conditions list `[]`, `"routine"`, `"General Physician"`, and clinical assessment recommendation;
+  - Strict input validation in `symptom_checker/serializers.py` (1–10 items, 1–100 chars, no blank strings, reject unknown JSON keys with 400 `VALIDATION_ERROR`);
+  - Internal endpoint `POST /api/symptom-checker/check` in `symptom_checker/views.py` and `symptom_checker/urls.py` protected by timing-safe `ServiceKeyMiddleware`;
+  - Full test suite passing with 37 tests in `symptom_checker` (12 engine unit tests, 25 endpoint integration tests) and 60 total tests passing across `ai-service/`.
+- Next step: Open PR for `feature/symptom-checker-ai` into `main`; then start `feature/symptom-checker-api` (Express backend integration, validation, and storage).
 - Blockers or open questions: none
 
 ## Feature status
@@ -36,7 +38,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 10 | medical-records | done | done | Riyank (API), Uday Raj (UI) | FR-13 (UC-09). GET /records/me, GET /records/patient/:patientId, POST /records/patient/:patientId/entries with atomic upsert, age derivation, zero PII leak, anti-enumeration, and no-store caching. Separate patient and doctor routes, confirmation dialog, character counters, plain-text XSS defense, full Vitest coverage |
 | 11 | prescriptions | done | done | Alis (API), Uday Raj (UI) | FR-14, FR-15, FR-16 (UC-10, UC-11). POST /prescriptions, GET /prescriptions, GET /prescriptions/:id/pdf. Full frontend UI at /patient/prescriptions and /doctor/appointments/:id/prescription with PDF download, dynamic medicines FormArray, confirmation modal, 409 recovery, 287 frontend tests passing |
 | 12 | prescription-pdf | done | n/a | Uday Raj | Merged in PR #17. Django endpoint POST /api/prescriptions/pdf with ReportLab, timing-safe X-Service-Key check, escaping, and tests |
-| 13 | symptom-checker | not started | not started | | |
+| 13 | symptom-checker | in progress | not started | Alis (Django) | Django endpoint POST /api/symptom-checker/check complete with rule-based engine, red-flag detection, negation safeguard, and 37 tests passing. Express API and Angular UI next |
 | 14 | admin-user-management | not started | not started | | |
 | 15 | polish-testing | not started | n/a | | |
 
@@ -161,6 +163,13 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-29 | PDF download via Blob & temporary anchor: `HttpClient.get(..., { responseType: 'blob' })` verifies `application/pdf`, creates temporary Blob object URL, triggers download via hidden anchor, and immediately revokes object URL in `finally` | Avoids asynchronous popup blocker failures associated with `window.open`, maintains zero sensitive data leakage in URLs or logs |
 | 2026-10-29 | Prescription creation confirmation modal: accessible modal (`role="dialog"`, `aria-modal="true"`) summarizing medicines and dosages with explicit warning: `"Prescriptions are permanent and cannot be modified or deleted once issued."` | Prevents accidental submission of immutable clinical documents |
 | 2026-10-29 | Graceful 409 conflict recovery & pending PDF handling: on 409 `PRESCRIPTION_EXISTS`, UI re-queries existing prescription and seamlessly transitions to its read-only view; when `pdfStatus === 'pending'`, displays clear message that prescription was saved with "Retry PDF Download" button | Guarantees doctor never loses context or re-submits unnecessarily, while maintaining zero clinical data loss |
+| 2026-10-31 | Django symptom checker endpoint is `POST /api/symptom-checker/check` protected by `X-Service-Key` header | Follows Django app mounting under `/api/symptom-checker/` and `ServiceKeyMiddleware` |
+| 2026-10-31 | Response field naming is `snake_case`: `assessment`, `possible_conditions`, `urgency_level`, `suggested_specialisation`, `general_advice`, `disclaimer` | Python/Django conventions and TEAM_GUIDE section 8.5 spec |
+| 2026-10-31 | Urgency levels are strictly `emergency`, `urgent`, `routine`; emergency notice is prepended to assessment; emergency takes priority over mild symptoms | Clinical safety rules; clear emergency distinction |
+| 2026-10-31 | Negation detection safeguard: phrases prefixed with 'no', 'not', 'denies', 'without' do not trigger red flags or mild symptoms | Prevents false emergency triggers from negative symptom reports |
+| 2026-10-31 | Multiple mild symptoms threshold: 3 or more distinct canonical mild symptoms elevate urgency to 'urgent' with a 24-hour doctor consultation recommendation | Clinical escalation rule for complex multi-symptom presentations |
+| 2026-10-31 | Fallback on unknown symptoms: empty `possible_conditions: []`, `urgency_level: "routine"`, `suggested_specialisation: "General Physician"`, advising clinical evaluation | Informational safety; never hallucinate or invent diagnoses |
+| 2026-10-31 | Strict input limits: 1 to 10 symptom items, 1 to 100 characters per item, no blank strings, unknown keys rejected with 400 `VALIDATION_ERROR` | Microservice robustness and payload boundary enforcement |
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
 - Added the optional env variable `ADMIN_PHONE` (default placeholder +910000000000), because the User model requires a phone for every user, including the admin.
