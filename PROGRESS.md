@@ -6,17 +6,21 @@ Last updated: 2026-10-31  by: Alis
 
 ## Current work
 
-- Branch: `feature/symptom-checker-api`
-- Feature: symptom-checker (Express API done)
-- Last thing finished: FR-17 (UC-12) AI symptom checker Express API implementation in `backend/`:
-  - `SymptomCheckResult` model with indexed `patient`, `symptomsInput`, structured `aiAssessment` subdocument (`assessment`, `possibleConditions`, `urgencyLevel`, `suggestedSpecialisation`, `generalAdvice`, `disclaimer`), and indexed `checkedAt`;
-  - Input validation in `backend/src/utils/validateSymptomCheck.js` enforcing 1–10 symptoms, 1–100 characters per item, non-blank strings, strict key checking, and rejection of patient ID injection;
-  - Dedicated self-contained Django client in `backend/src/services/symptomCheckService.js` connecting to `POST /api/symptom-checker/check` with `X-Service-Key`, 5-second timeout (`AbortSignal.timeout(5000)`), 64 KiB streaming limit with early stream cancellation, response schema validation against booking-flow doctor catalogue, and mapping all failures to safe 502 `SYMPTOM_SERVICE_UNAVAILABLE`;
-  - `POST /api/v1/symptom-checks` authenticated patient endpoint with `Cache-Control: no-store`, returning HTTP 201 with camelCase `{ result: { id, symptoms, assessment, checkedAt } }`;
-  - `GET /api/v1/symptom-checks` patient history route with pagination (`page`, `limit`), sorted newest first (`checkedAt: -1`), and `Cache-Control: no-store`;
-  - Rate limiter `createSymptomCheckLimiter` in `backend/src/middleware/rateLimiters.js` enforcing 10 checks per 15 minutes per authenticated patient ID (`req.user.id`), returning 429 `TOO_MANY_REQUESTS`;
-  - Full automated test suite in `backend/tests/symptomChecks.test.js` covering 25 test scenarios across client, API, storage, and rate limiting.
-- Next step: Open PR for `feature/symptom-checker-api` into `main`; then start `feature/symptom-checker-ui` (Angular frontend patient UI).
+- Branch: `feature/symptom-checker-ui`
+- Feature: symptom-checker (Django, Express API & Angular UI complete)
+- Last thing finished: FR-17 (UC-12) AI symptom checker Angular UI implementation in `frontend/`:
+  - Dedicated models and service in `frontend/src/app/core/symptom-checker/` (`symptom-checker.models.ts`, `symptom-checker.service.ts`) connecting to `POST /api/v1/symptom-checks` and paginated `GET /api/v1/symptom-checks` with `clearMemory()` privacy hygiene;
+  - Route registered at `/patient/symptom-checker` protected by `roleGuard('patient')` with title `'Symptom Checker | MediSync'`;
+  - Patient dashboard navigation link on `/patient` dashboard card with clear informational description;
+  - Accessible single-input chip-based symptom entry supporting up to 10 symptoms, 100 characters per item, duplicate/whitespace normalization, character and symptom counters, Enter key / click to add, chip removal, and `aria-live` announcements;
+  - Unified single-page layout displaying the entry form, active assessment result card, emergency alert banner, and past assessment history below;
+  - Clinical safety presentation with prominent emergency alert banner for `urgencyLevel === 'emergency'`, assertive screen reader announcement, icon + text urgency badges (emergency, urgent, routine), structured assessment sections, and mandatory immutable medical disclaimer always visible next to the result and on every history card (even while collapsed);
+  - "Find a doctor" action routing to `/patient/doctors`;
+  - Paginated assessment history with expandable/collapsible cards and accessible `aria-expanded` attributes;
+  - Strict adherence to NFR-08 privacy: plain-text interpolation only (preserving line breaks with `white-space: pre-wrap;`, zero `innerHTML`), zero caching in `localStorage`/`sessionStorage`/URL query params, and complete memory wipe on `ngOnDestroy`;
+  - 20 unit tests across service and component (`symptom-checker.service.spec.ts` and `patient-symptom-checker.spec.ts`) covering all 16 required functional scenarios, privacy rules, and role guard enforcement;
+  - All 39 frontend test suites (307 tests) passing and production build (`npm run build`) succeeding.
+- Next step: Open PR for `feature/symptom-checker-ui` into `main`; then start Feature 14 (`feature/admin-user-management-api`).
 - Blockers or open questions: none
 
 ## Feature status
@@ -37,7 +41,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 10 | medical-records | done | done | Riyank (API), Uday Raj (UI) | FR-13 (UC-09). GET /records/me, GET /records/patient/:patientId, POST /records/patient/:patientId/entries with atomic upsert, age derivation, zero PII leak, anti-enumeration, and no-store caching. Separate patient and doctor routes, confirmation dialog, character counters, plain-text XSS defense, full Vitest coverage |
 | 11 | prescriptions | done | done | Alis (API), Uday Raj (UI) | FR-14, FR-15, FR-16 (UC-10, UC-11). POST /prescriptions, GET /prescriptions, GET /prescriptions/:id/pdf. Full frontend UI at /patient/prescriptions and /doctor/appointments/:id/prescription with PDF download, dynamic medicines FormArray, confirmation modal, 409 recovery, 287 frontend tests passing |
 | 12 | prescription-pdf | done | n/a | Uday Raj | Merged in PR #17. Django endpoint POST /api/prescriptions/pdf with ReportLab, timing-safe X-Service-Key check, escaping, and tests |
-| 13 | symptom-checker | done | not started | Alis (Django & API) | Django microservice and Express API complete with rule-based engine, red-flag detection, rate limiting, and result storage. Angular UI next |
+| 13 | symptom-checker | done | done | Alis (Django, API & UI) | FR-17 (UC-12). Rule-based symptom assessment microservice in Django, rate-limited and secured Express API, and accessible single-page Angular UI at /patient/symptom-checker with emergency alerts, chip entry, expandable history, and full Vitest coverage |
 | 14 | admin-user-management | not started | not started | | |
 | 15 | polish-testing | not started | n/a | | |
 
@@ -176,6 +180,13 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-10-31 | Explicit snake_case to camelCase mapping and storage: only assessment, possibleConditions, urgencyLevel, suggestedSpecialisation, generalAdvice, disclaimer persisted | Keeps MongoDB records and API output stable and immune to future LLM debug metadata |
 | 2026-10-31 | Rate limiting on POST /symptom-checks: 10 requests / 15 minutes keyed by req.user.id, returning 429 TOO_MANY_REQUESTS | Prevents denial of service and API abuse while isolating limits per authenticated patient |
 | 2026-10-31 | Cache-Control: no-store header on POST and GET /api/v1/symptom-checks with zero patient PII in responses | NFR-08 medical privacy compliance |
+| 2026-10-31 | Symptom checker UI route: `/patient/symptom-checker` guarded by `roleGuard('patient')` with title `Symptom Checker \| MediSync`, linked from `/patient` dashboard | Enforces patient-only role boundary and consistent MediSync page title conventions |
+| 2026-10-31 | Symptom entry method: Single text input with Add button and Enter key support, removable chips, 10 symptom maximum, 100 character limit, duplicate detection after case/whitespace normalization, and polite `aria-live` announcements | Clean accessible UX allowing multi-word symptoms without comma ambiguity while enforcing backend limits |
+| 2026-10-31 | Unified single-page layout: Form, assessment results, and history on one page without tabs or routing away | Seamless patient workflow keeping context, entered symptoms, and assessment history immediately visible |
+| 2026-10-31 | Emergency presentation & accessibility: Prominent emergency banner at the top for `urgencyLevel === 'emergency'` with assertive screen reader announcement; icon + text urgency badges (never color alone) | Critical medical safety (AGENTS.md section 9), preventing patients in danger from missing urgent instructions |
+| 2026-10-31 | Mandatory medical disclaimer: Rendered prominently in current result and visible on every history card even when collapsed | AGENTS.md section 9 compliance ensuring informational warning is permanently visible across all views |
+| 2026-10-31 | "Find a doctor" action: Directly navigates to `/patient/doctors` (without query parameters because `doctor-search` does not inspect them) | Direct patient booking handoff matching actual existing route functionality |
+| 2026-10-31 | NFR-08 privacy & memory hygiene: Zero browser storage (`localStorage`/`sessionStorage`), zero URL query params, plain-text interpolation only (never `innerHTML`), and in-memory signals wiped on `ngOnDestroy` and `clearMemory()` | Medical data privacy compliance; prevents sensitive health symptoms from lingering on shared devices |
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
 - Added the optional env variable `ADMIN_PHONE` (default placeholder +910000000000), because the User model requires a phone for every user, including the admin.
@@ -193,6 +204,7 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 - A logged-in user can still open `/login` and `/register` by typing the address. They are not redirected to their dashboard yet.
 - Backend tests pass `runtimeAdapters: { os: require('os') }` in tests/helpers/db.js because of the MongoDB driver bug NODE-7832 (driver 7.6 and later, under Jest). Remove it once a fixed driver is released.
 - AGENTS.md section 6 lists the internal Django endpoint as `POST /prescriptions/pdf`, whereas the Django application mounts it under `POST /api/prescriptions/pdf` (defined in `ai-service/config/urls.py`). Backend uses the real mounted path `/api/prescriptions/pdf`.
+- Doctor search page (/patient/doctors) does not inspect URL query parameters (e.g. ?specialisation=); the "Find a doctor" action on the symptom checker navigates to /patient/doctors where the patient can select a doctor.
 ## How to hand over to another AI
 
 Start a new chat or tool and paste the contents of these three files in this order: `AGENTS.md`, `PROJECT_CONTEXT.md`, `PROGRESS.md`. If the tool can read the repo, point it at the repo root instead. Then send:
