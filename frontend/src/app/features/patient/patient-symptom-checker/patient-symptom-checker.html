@@ -12,7 +12,7 @@
     {{ liveAnnouncement() }}
   </div>
 
-  <!-- Symptom Entry Form Card -->
+  <!-- 1. Symptom Entry Form Card -->
   <section class="card form-card" aria-labelledby="form-heading">
     <h2 id="form-heading" class="card-title">What symptoms are you experiencing?</h2>
     <p class="card-instruction">
@@ -47,7 +47,7 @@
         type="button"
         class="button button-add"
         (click)="addSymptom()"
-        [disabled]="!canAddMore() || currentInputLength() === 0"
+        [disabled]="!canAddMore() || currentInputLength() === 0 || submitting()"
         aria-label="Add symptom to list"
       >
         Add
@@ -73,6 +73,7 @@
                 type="button"
                 class="chip-remove"
                 (click)="removeSymptom($index)"
+                [disabled]="submitting()"
                 [attr.aria-label]="'Remove symptom: ' + symptom"
               >
                 &times;
@@ -87,15 +88,287 @@
       </div>
     }
 
+    <!-- Submission Error Alert -->
+    @if (submissionError()) {
+      <div class="field-error submission-error" role="alert">
+        {{ submissionError() }}
+      </div>
+    }
+
     <div class="form-actions">
       <button
         type="button"
         class="button button-primary submit-btn"
-        [disabled]="!canSubmit()"
+        (click)="submitCheck()"
+        [disabled]="!canSubmit() || submitting()"
       >
-        Check Symptoms
+        @if (submitting()) {
+          Checking symptoms...
+        } @else {
+          Check Symptoms
+        }
       </button>
+
+      @if (currentResult()) {
+        <button
+          type="button"
+          class="button button-secondary reset-btn"
+          (click)="startNewCheck()"
+          [disabled]="submitting()"
+        >
+          Start New Check
+        </button>
+      }
+
       <span class="wait-hint">Assessment takes only a few seconds.</span>
     </div>
+  </section>
+
+  <!-- 2. Active Assessment Result Card -->
+  @if (currentResult(); as res) {
+    <section class="card result-card" [class.emergency-result-card]="isEmergency()" aria-labelledby="result-heading">
+      <!-- High Priority Emergency Banner -->
+      @if (isEmergency()) {
+        <div class="emergency-alert-banner" role="alert" aria-live="assertive">
+          <div class="emergency-icon" aria-hidden="true">🚨</div>
+          <div class="emergency-content">
+            <h3 class="emergency-title">EMERGENCY NOTICE: Immediate Medical Attention Required</h3>
+            <p class="emergency-desc">
+              One or more reported symptoms suggest a potentially life-threatening situation. Please call local emergency services (112, 911, 999) or proceed to the nearest emergency department immediately. Do not wait for a routine doctor appointment.
+            </p>
+          </div>
+        </div>
+      }
+
+      <div class="result-header">
+        <h2 #resultHeadingRef id="result-heading" tabindex="-1" class="result-heading">
+          Preliminary Assessment
+        </h2>
+
+        <!-- Urgency Badge: Icon + Text (Never color alone) -->
+        <div
+          class="urgency-badge"
+          [class.badge-emergency]="res.assessment.urgencyLevel === 'emergency'"
+          [class.badge-urgent]="res.assessment.urgencyLevel === 'urgent'"
+          [class.badge-routine]="res.assessment.urgencyLevel === 'routine'"
+          role="status"
+        >
+          @switch (res.assessment.urgencyLevel) {
+            @case ('emergency') {
+              <span class="badge-icon" aria-hidden="true">🚨</span>
+              <span class="badge-text">Emergency (Immediate Attention Required)</span>
+            }
+            @case ('urgent') {
+              <span class="badge-icon" aria-hidden="true">⚠️</span>
+              <span class="badge-text">Urgent (Consult Doctor within 24 Hours)</span>
+            }
+            @default {
+              <span class="badge-icon" aria-hidden="true">ℹ️</span>
+              <span class="badge-text">Routine (Schedule Normal Consultation)</span>
+            }
+          }
+        </div>
+      </div>
+
+      <p class="informational-notice">
+        This informational overview is generated to assist you in discussing your health with a healthcare provider. It is not a clinical diagnosis.
+      </p>
+
+      <!-- Assessment Summary -->
+      <div class="result-section">
+        <h3 class="section-title">Assessment Summary</h3>
+        <p class="assessment-text">{{ res.assessment.assessment }}</p>
+      </div>
+
+      <!-- Possible Conditions -->
+      @if (res.assessment.possibleConditions.length > 0) {
+        <div class="result-section">
+          <h3 class="section-title">Potential Related Conditions</h3>
+          <p class="section-subtext">These are general possibilities based on your reported symptoms:</p>
+          <ul class="conditions-list">
+            @for (cond of res.assessment.possibleConditions; track $index) {
+              <li class="condition-item">{{ cond }}</li>
+            }
+          </ul>
+        </div>
+      }
+
+      <!-- Suggested Specialisation & Doctor Booking Link -->
+      <div class="result-section specialisation-box">
+        <div class="specialisation-info">
+          <h3 class="section-title">Suggested Medical Specialisation</h3>
+          <p class="spec-name">
+            <strong>{{ res.assessment.suggestedSpecialisation || 'General Physician' }}</strong>
+          </p>
+          <p class="spec-hint">
+            Consulting a specialist in this field is recommended for comprehensive evaluation.
+          </p>
+        </div>
+        <a routerLink="/patient/doctors" class="button button-primary find-doctor-btn">
+          Find a Doctor
+        </a>
+      </div>
+
+      <!-- General Advice -->
+      @if (res.assessment.generalAdvice.length > 0) {
+        <div class="result-section">
+          <h3 class="section-title">General Care & Recommendations</h3>
+          <ul class="advice-list">
+            @for (tip of res.assessment.generalAdvice; track $index) {
+              <li class="advice-item">{{ tip }}</li>
+            }
+          </ul>
+        </div>
+      }
+
+      <!-- Mandatory Medical Disclaimer (Always Prominently Visible) -->
+      <aside class="mandatory-disclaimer-card" aria-label="Medical Disclaimer">
+        <h3 class="disclaimer-title">Medical Disclaimer</h3>
+        <p class="disclaimer-text">
+          {{ res.assessment.disclaimer || fallbackDisclaimer }}
+        </p>
+      </aside>
+    </section>
+  }
+
+  <!-- 3. Patient Assessment History Section -->
+  <section class="card history-section" aria-labelledby="history-heading">
+    <div class="history-header">
+      <h2 id="history-heading" class="card-title">Past Symptom Checks</h2>
+      <p class="history-subtitle">Review your previous symptom assessments below.</p>
+    </div>
+
+    @if (loadingHistory()) {
+      <div class="state-box" aria-live="polite">
+        <p>Loading your past symptom assessments...</p>
+      </div>
+    } @else if (historyError()) {
+      <div class="error-box" role="alert">
+        <p class="error">{{ historyError() }}</p>
+        <button type="button" class="button button-secondary" (click)="loadHistory(pagination().page)">
+          Retry
+        </button>
+      </div>
+    } @else if (history().length === 0) {
+      <div class="empty-box">
+        <h3>No checks yet</h3>
+        <p>You have not completed any symptom assessments yet. Enter symptoms above to begin.</p>
+      </div>
+    } @else {
+      <div class="history-list">
+        @for (item of history(); track item.id + '-' + $index) {
+          <article class="history-card" [class.history-card-emergency]="item.assessment.urgencyLevel === 'emergency'">
+            <div class="history-card-header">
+              <div class="history-meta">
+                <span class="history-date">{{ formatDate(item.checkedAt) }}</span>
+                <span
+                  class="urgency-badge urgency-badge-sm"
+                  [class.badge-emergency]="item.assessment.urgencyLevel === 'emergency'"
+                  [class.badge-urgent]="item.assessment.urgencyLevel === 'urgent'"
+                  [class.badge-routine]="item.assessment.urgencyLevel === 'routine'"
+                >
+                  @switch (item.assessment.urgencyLevel) {
+                    @case ('emergency') { 🚨 Emergency }
+                    @case ('urgent') { ⚠️ Urgent }
+                    @default { ℹ️ Routine }
+                  }
+                </span>
+              </div>
+
+              <div class="history-symptoms-row">
+                <strong>Symptoms checked:</strong>
+                <span class="symptoms-text">{{ item.symptoms.join(', ') }}</span>
+              </div>
+
+              <!-- Mandatory Disclaimer Visible on Every History Card -->
+              <div class="history-card-disclaimer">
+                <strong>Disclaimer:</strong> {{ item.assessment.disclaimer || fallbackDisclaimer }}
+              </div>
+
+              <!-- Toggle Expand/Collapse Control -->
+              <button
+                type="button"
+                class="button button-secondary expand-toggle-btn"
+                (click)="toggleHistoryCard(item.id)"
+                [attr.aria-expanded]="isCardExpanded(item.id)"
+                [attr.aria-controls]="'history-details-' + item.id"
+              >
+                @if (isCardExpanded(item.id)) {
+                  Hide Details &minus;
+                } @else {
+                  View Full Assessment &plus;
+                }
+              </button>
+            </div>
+
+            <!-- Expanded Assessment Details -->
+            @if (isCardExpanded(item.id)) {
+              <div [id]="'history-details-' + item.id" class="history-card-details">
+                <div class="history-detail-block">
+                  <h4>Assessment</h4>
+                  <p class="assessment-text">{{ item.assessment.assessment }}</p>
+                </div>
+
+                @if (item.assessment.possibleConditions.length > 0) {
+                  <div class="history-detail-block">
+                    <h4>Potential Related Conditions</h4>
+                    <ul>
+                      @for (c of item.assessment.possibleConditions; track $index) {
+                        <li>{{ c }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
+
+                <div class="history-detail-block">
+                  <h4>Suggested Specialisation</h4>
+                  <p>
+                    <strong>{{ item.assessment.suggestedSpecialisation || 'General Physician' }}</strong>
+                    &mdash;
+                    <a routerLink="/patient/doctors" class="inline-link">Find doctor</a>
+                  </p>
+                </div>
+
+                @if (item.assessment.generalAdvice.length > 0) {
+                  <div class="history-detail-block">
+                    <h4>General Advice</h4>
+                    <ul>
+                      @for (adv of item.assessment.generalAdvice; track $index) {
+                        <li>{{ adv }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
+              </div>
+            }
+          </article>
+        }
+      </div>
+
+      <!-- Pagination Controls -->
+      @if (pagination().totalPages > 1) {
+        <nav class="pagination-nav" aria-label="Past symptom checks pagination">
+          <button
+            type="button"
+            class="button button-secondary"
+            (click)="onPrevPage()"
+            [disabled]="pagination().page <= 1"
+          >
+            &larr; Previous
+          </button>
+          <span class="pagination-info" aria-current="page">
+            Page {{ pagination().page }} of {{ pagination().totalPages }}
+          </span>
+          <button
+            type="button"
+            class="button button-secondary"
+            (click)="onNextPage()"
+            [disabled]="pagination().page >= pagination().totalPages"
+          >
+            Next &rarr;
+          </button>
+        </nav>
+      }
+    }
   </section>
 </main>
