@@ -1,3 +1,5 @@
+const AppError = require('../utils/AppError');
+
 // Express recognises an error handler by its four arguments, keep all four.
 function errorHandler(err, req, res, next) {
   if (res.headersSent) {
@@ -15,6 +17,9 @@ function errorHandler(err, req, res, next) {
     Number.isInteger(err.status) && err.status >= 400 && err.status < 600 ? err.status : 500;
 
   if (status >= 500) {
+    if (err instanceof AppError && err.code) {
+      return res.status(status).json({ message: err.message, code: err.code });
+    }
     // Log the real error on the server, never send details to the client.
     console.error(err);
     return res
