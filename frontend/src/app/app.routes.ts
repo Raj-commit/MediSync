@@ -57,6 +57,15 @@ export const routes: Routes = [
     title: 'Prescriptions | MediSync',
   },
   {
+    path: 'patient/symptom-checker',
+    canActivate: [roleGuard('patient')],
+    loadComponent: () =>
+      import('./features/patient/patient-symptom-checker/patient-symptom-checker').then(
+        (m) => m.PatientSymptomChecker,
+      ),
+    title: 'Symptom Checker | MediSync',
+  },
+  {
     path: 'patient',
     canActivate: [roleGuard('patient')],
     loadComponent: () =>

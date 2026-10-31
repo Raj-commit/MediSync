@@ -9,7 +9,7 @@ import { PatientDashboard } from './patient-dashboard';
 describe('PatientDashboard', () => {
   afterEach(() => localStorage.clear());
 
-  it('greets the logged-in patient and displays links to find a doctor, view records, prescriptions and profile', async () => {
+  it('greets the logged-in patient and displays links to find a doctor, view records, prescriptions, symptom checker and profile', async () => {
     localStorage.setItem('medisync.token', fakeJwt(3600));
     localStorage.setItem(
       'medisync.user',
@@ -29,6 +29,7 @@ describe('PatientDashboard', () => {
     expect(page.querySelector('a[routerLink="/patient/doctors"]')).not.toBeNull();
     expect(page.querySelector('a[routerLink="/patient/records"]')).not.toBeNull();
     expect(page.querySelector('a[routerLink="/patient/prescriptions"]')).not.toBeNull();
+    expect(page.querySelector('a[routerLink="/patient/symptom-checker"]')).not.toBeNull();
     expect(page.querySelector('a[routerLink="/patient/profile"]')).not.toBeNull();
   });
 });

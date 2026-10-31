@@ -1,0 +1,101 @@
+<main class="container">
+  <div class="page-header">
+    <a routerLink="/patient" class="back-link">&larr; Back to Dashboard</a>
+    <h1>AI Symptom Checker</h1>
+    <p class="subtitle">
+      Enter your symptoms to receive preliminary informational guidance. This tool is not a medical diagnosis.
+    </p>
+  </div>
+
+  <!-- Screen reader live announcement region -->
+  <div class="sr-only" aria-live="polite" aria-atomic="true">
+    {{ liveAnnouncement() }}
+  </div>
+
+  <!-- Symptom Entry Form Card -->
+  <section class="card form-card" aria-labelledby="form-heading">
+    <h2 id="form-heading" class="card-title">What symptoms are you experiencing?</h2>
+    <p class="card-instruction">
+      Type symptoms one at a time and click <strong>Add</strong> or press <strong>Enter</strong>. You can add up to {{ maxSymptoms }} symptoms.
+    </p>
+
+    <div class="input-row">
+      <div class="input-field-wrapper">
+        <label for="symptom-input" class="field-label">Symptom description</label>
+        <input
+          #symptomInputRef
+          id="symptom-input"
+          type="text"
+          class="text-input"
+          [formControl]="symptomInput"
+          [attr.maxlength]="maxSymptomLength"
+          placeholder="e.g. Mild headache, sore throat, fatigue"
+          (keydown.enter)="$event.preventDefault(); addSymptom()"
+          aria-describedby="input-counter input-error-desc"
+        />
+        <div class="input-meta">
+          <span id="input-counter" class="counter">
+            {{ currentInputLength() }} / {{ maxSymptomLength }} characters
+          </span>
+          <span class="total-counter">
+            {{ totalSymptomsCount() }} / {{ maxSymptoms }} symptoms added
+          </span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="button button-add"
+        (click)="addSymptom()"
+        [disabled]="!canAddMore() || currentInputLength() === 0"
+        aria-label="Add symptom to list"
+      >
+        Add
+      </button>
+    </div>
+
+    <!-- Error alert for input validation -->
+    @if (inputError()) {
+      <div id="input-error-desc" class="field-error" role="alert">
+        {{ inputError() }}
+      </div>
+    }
+
+    <!-- Added Symptoms Chips List -->
+    @if (symptoms().length > 0) {
+      <div class="chips-container" aria-label="Added symptoms list">
+        <h3 class="chips-label">Your entered symptoms:</h3>
+        <ul class="chips-list">
+          @for (symptom of symptoms(); track $index) {
+            <li class="chip">
+              <span class="chip-text">{{ symptom }}</span>
+              <button
+                type="button"
+                class="chip-remove"
+                (click)="removeSymptom($index)"
+                [attr.aria-label]="'Remove symptom: ' + symptom"
+              >
+                &times;
+              </button>
+            </li>
+          }
+        </ul>
+      </div>
+    } @else {
+      <div class="empty-chips-hint">
+        <p>No symptoms added yet. Please add at least 1 symptom to proceed.</p>
+      </div>
+    }
+
+    <div class="form-actions">
+      <button
+        type="button"
+        class="button button-primary submit-btn"
+        [disabled]="!canSubmit()"
+      >
+        Check Symptoms
+      </button>
+      <span class="wait-hint">Assessment takes only a few seconds.</span>
+    </div>
+  </section>
+</main>
