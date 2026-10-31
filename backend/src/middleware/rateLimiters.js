@@ -17,4 +17,28 @@ function createLoginLimiter({ windowMs = 15 * 60 * 1000, limit = 10 } = {}) {
   });
 }
 
-module.exports = { createLoginLimiter };
+// Limits symptom check submissions to 10 requests per 15 minutes per authenticated patient.
+// Must run AFTER authenticate and requireRole('patient') so req.user.id is available.
+function createSymptomCheckLimiter({ windowMs = 15 * 60 * 1000, limit = 10 } = {}) {
+  return rateLimit({
+    windowMs,
+    limit,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    validate: { keyGeneratorIpFallback: false },
+    keyGenerator: (req) => {
+      return String(req.user?.id || req.user?._id || 'anonymous');
+    },
+    handler: (req, res, next) => {
+      next(
+        new AppError(
+          429,
+          'TOO_MANY_REQUESTS',
+          'Too many symptom check requests. Please try again later.'
+        )
+      );
+    },
+  });
+}
+
+module.exports = { createLoginLimiter, createSymptomCheckLimiter };
