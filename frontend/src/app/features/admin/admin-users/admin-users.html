@@ -1,0 +1,161 @@
+<main class="admin-users-container">
+  <!-- Top navigation breadcrumb / header -->
+  <div class="page-header">
+    <nav aria-label="Breadcrumb" class="breadcrumb">
+      <a routerLink="/admin" class="back-link">← Back to Admin Dashboard</a>
+    </nav>
+    <div class="title-row">
+      <div>
+        <h1>User Account Management</h1>
+        <p class="subtitle">View and manage patient and doctor accounts</p>
+      </div>
+      <div class="count-badge" aria-live="polite">
+        {{ countSummary() }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen reader live announcement region -->
+  <div class="sr-only" role="status" aria-live="polite">
+    {{ liveAnnouncement() }}
+  </div>
+
+  <!-- Error Alert -->
+  @if (errorMessage()) {
+    <div class="error-banner" role="alert">
+      <p class="error-text">{{ errorMessage() }}</p>
+      <button type="button" class="button button-outline button-sm" (click)="loadUsers()">
+        Retry
+      </button>
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="state-box" aria-busy="true">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Loading user accounts...</p>
+    </div>
+  } @else if (users().length === 0 && !errorMessage()) {
+    <!-- Empty State -->
+    <div class="state-box empty-state">
+      <p class="state-title">No accounts found</p>
+      <p class="state-desc">There are no patient or doctor accounts matching the criteria.</p>
+    </div>
+  } @else if (users().length > 0) {
+    <!-- Users List Table / Responsive Cards -->
+    <div class="table-card">
+      <table class="users-table">
+        <caption class="sr-only">
+          List of registered patient and doctor accounts with status and management actions
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Contact</th>
+            <th scope="col">Role</th>
+            <th scope="col">Status</th>
+            <th scope="col">Registered</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of users(); track user.id) {
+            <tr class="user-row">
+              <!-- Name & Doctor Details -->
+              <td data-label="Name" class="cell-name">
+                <span class="user-name">{{ user.name }}</span>
+                @if (user.role === 'doctor' && doctorDetails(user)) {
+                  <span class="doctor-meta">{{ doctorDetails(user) }}</span>
+                }
+                <span class="user-id">ID: {{ user.id }}</span>
+              </td>
+
+              <!-- Contact Info -->
+              <td data-label="Contact" class="cell-contact">
+                <div class="contact-email">{{ user.email }}</div>
+                <div class="contact-phone">{{ user.phone }}</div>
+              </td>
+
+              <!-- Role -->
+              <td data-label="Role" class="cell-role">
+                <span class="role-badge role-{{ user.role }}">
+                  {{ user.role === 'doctor' ? 'Doctor' : 'Patient' }}
+                </span>
+              </td>
+
+              <!-- Status (Text + Icon, not color alone) -->
+              <td data-label="Status" class="cell-status">
+                <span
+                  class="status-badge"
+                  [class.status-active]="user.isActive"
+                  [class.status-inactive]="!user.isActive"
+                >
+                  <span class="status-icon" aria-hidden="true">
+                    {{ user.isActive ? '✓' : '⊘' }}
+                  </span>
+                  <span class="status-text">
+                    {{ user.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </span>
+              </td>
+
+              <!-- Registered Date -->
+              <td data-label="Registered" class="cell-date">
+                {{ formatDate(user.createdAt) }}
+              </td>
+
+              <!-- Actions Placeholder for Step 2 -->
+              <td data-label="Actions" class="cell-actions">
+                @if (user.isActive) {
+                  <button
+                    type="button"
+                    class="button button-danger button-sm"
+                    [disabled]="loading()"
+                  >
+                    Deactivate
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="button button-secondary button-sm"
+                    [disabled]="loading()"
+                  >
+                    Activate
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    @if (pagination() && pagination()!.totalPages > 1) {
+      <nav aria-label="User accounts pagination" class="pagination-nav">
+        <button
+          type="button"
+          class="button button-outline button-sm"
+          [disabled]="page() <= 1 || loading()"
+          (click)="goToPage(page() - 1)"
+        >
+          ← Previous
+        </button>
+
+        <span class="pagination-info" aria-current="page">
+          Page {{ pagination()!.page }} of {{ pagination()!.totalPages }}
+        </span>
+
+        <button
+          type="button"
+          class="button button-outline button-sm"
+          [disabled]="page() >= pagination()!.totalPages || loading()"
+          (click)="goToPage(page() + 1)"
+        >
+          Next →
+        </button>
+      </nav>
+    }
+  }
+</main>

@@ -1,5 +1,9 @@
 <section class="card">
   <h1>Admin dashboard</h1>
   <p>Welcome, {{ auth.user()?.name }}.</p>
-  <p>Patient and doctor account management will appear here.</p>
+  <p>
+    <a routerLink="/admin/users" class="button button-primary"
+      >Manage patient and doctor accounts</a
+    >
+  </p>
 </section>
