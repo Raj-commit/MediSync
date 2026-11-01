@@ -15,6 +15,81 @@
     </div>
   </div>
 
+  <!-- Search and Filters Bar -->
+  <section class="filters-card" aria-label="Filter and search accounts">
+    <form class="filters-form" (submit)="$event.preventDefault(); onSearchSubmit()">
+      <!-- Search Input -->
+      <div class="filter-group search-group">
+        <label for="admin-search-input" class="filter-label">Search</label>
+        <div class="search-input-wrapper">
+          <input
+            id="admin-search-input"
+            type="search"
+            class="input-search"
+            placeholder="Search by name or email..."
+            maxlength="100"
+            [value]="searchInput()"
+            (input)="searchInput.set($any($event.target).value)"
+            [disabled]="loading()"
+          />
+          <button
+            type="submit"
+            class="button button-primary button-sm button-search"
+            [disabled]="loading()"
+          >
+            Search
+          </button>
+        </div>
+      </div>
+
+      <!-- Role Dropdown Filter -->
+      <div class="filter-group">
+        <label for="admin-role-filter" class="filter-label">Role</label>
+        <select
+          id="admin-role-filter"
+          class="filter-select"
+          [value]="roleFilter()"
+          (change)="onRoleFilterChange($any($event.target).value)"
+          [disabled]="loading()"
+        >
+          <option value="all">All Roles</option>
+          <option value="patient">Patients</option>
+          <option value="doctor">Doctors</option>
+        </select>
+      </div>
+
+      <!-- Status Dropdown Filter -->
+      <div class="filter-group">
+        <label for="admin-status-filter" class="filter-label">Status</label>
+        <select
+          id="admin-status-filter"
+          class="filter-select"
+          [value]="statusFilter()"
+          (change)="onStatusFilterChange($any($event.target).value)"
+          [disabled]="loading()"
+        >
+          <option value="all">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+
+      <!-- Clear Filters Button -->
+      @if (hasActiveFilters()) {
+        <div class="filter-group clear-group">
+          <button
+            type="button"
+            class="button button-outline button-sm button-clear"
+            (click)="clearFilters()"
+            [disabled]="loading()"
+          >
+            Clear filters
+          </button>
+        </div>
+      }
+    </form>
+  </section>
+
   <!-- Screen reader live announcement region -->
   <div class="sr-only" role="status" aria-live="polite">
     {{ liveAnnouncement() }}
@@ -39,8 +114,20 @@
   } @else if (users().length === 0 && !errorMessage()) {
     <!-- Empty State -->
     <div class="state-box empty-state">
-      <p class="state-title">No accounts found</p>
-      <p class="state-desc">There are no patient or doctor accounts matching the criteria.</p>
+      @if (hasActiveFilters()) {
+        <p class="state-title">No accounts match your search or filters</p>
+        <p class="state-desc">Try clearing your filters or using a different search query.</p>
+        <button
+          type="button"
+          class="button button-primary button-sm button-empty-clear"
+          (click)="clearFilters()"
+        >
+          Clear filters
+        </button>
+      } @else {
+        <p class="state-title">No accounts found</p>
+        <p class="state-desc">There are no patient or doctor accounts in the system.</p>
+      }
     </div>
   } @else if (users().length > 0) {
     <!-- Users List Table / Responsive Cards -->
@@ -105,7 +192,7 @@
                 {{ formatDate(user.createdAt) }}
               </td>
 
-              <!-- Actions Placeholder for Step 2 -->
+              <!-- Actions Placeholder for Step 3 -->
               <td data-label="Actions" class="cell-actions">
                 @if (user.isActive) {
                   <button
