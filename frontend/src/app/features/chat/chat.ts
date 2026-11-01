@@ -94,9 +94,12 @@ export class ChatPage implements OnInit, OnDestroy {
       const status = this.connectionStatus();
       if (status === 'reconnecting' || status === 'disconnected') {
         this.wasDisconnected = true;
-      } else if (status === 'connected' && this.wasDisconnected) {
-        this.wasDisconnected = false;
-        this.handleReconnect();
+      } else if (status === 'connected') {
+        this.joinChat();
+        if (this.wasDisconnected) {
+          this.wasDisconnected = false;
+          this.catchUpMissedMessages();
+        }
       }
     });
   }
@@ -289,10 +292,16 @@ export class ChatPage implements OnInit, OnDestroy {
     this.newMessageSub = this.socketService
       .on<NewMessageBroadcast>('new_message')
       .subscribe((data) => {
-        if (data.appointmentId === this.appointmentId) {
+        if (String(data.appointmentId) === String(this.appointmentId)) {
           this.appendMessages([data.message]);
         }
       });
+
+    this.joinChat();
+  }
+
+  private joinChat(): void {
+    if (!this.appointmentId) return;
 
     this.socketService
       .emitWithAck<JoinChatAck>('join_chat', {
@@ -312,15 +321,7 @@ export class ChatPage implements OnInit, OnDestroy {
       });
   }
 
-  private handleReconnect(): void {
-    // Re-join the appointment room
-    this.socketService
-      .emitWithAck<JoinChatAck>('join_chat', {
-        appointmentId: this.appointmentId,
-      })
-      .catch(() => {});
-
-    // Catch up on any messages missed during the disconnected window
+  private catchUpMissedMessages(): void {
     const current = this.messages();
     if (current.length > 0) {
       const maxSeq = Math.max(...current.map((m) => m.seq));

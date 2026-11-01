@@ -100,7 +100,7 @@ export class SocketService {
    */
   emitWithAck<T>(event: string, payload: unknown, timeoutMs = 10000): Promise<T> {
     return new Promise((resolve, reject) => {
-      if (!this.client || !this.client.connected) {
+      if (!this.client) {
         reject({
           success: false,
           code: 'NOT_CONNECTED',
@@ -109,21 +109,44 @@ export class SocketService {
         return;
       }
 
-      let hasFinished = false;
-      const timer = setTimeout(() => {
-        hasFinished = true;
-        reject({
-          success: false,
-          code: 'TIMEOUT',
-          message: 'The server took too long to respond. Please try again.',
-        });
-      }, timeoutMs);
+      const executeEmit = () => {
+        let hasFinished = false;
+        const timer = setTimeout(() => {
+          hasFinished = true;
+          reject({
+            success: false,
+            code: 'TIMEOUT',
+            message: 'The server took too long to respond. Please try again.',
+          });
+        }, timeoutMs);
 
-      this.client.emit(event, payload, (response: T) => {
-        if (hasFinished) return;
-        clearTimeout(timer);
-        resolve(response);
-      });
+        this.client!.emit(event, payload, (response: T) => {
+          if (hasFinished) return;
+          clearTimeout(timer);
+          resolve(response);
+        });
+      };
+
+      if (this.client.connected) {
+        executeEmit();
+      } else {
+        const connectTimer = setTimeout(() => {
+          this.client?.off('connect', onConnect);
+          reject({
+            success: false,
+            code: 'NOT_CONNECTED',
+            message: 'Cannot reach the chat server. Please check your connection.',
+          });
+        }, timeoutMs);
+
+        const onConnect = () => {
+          this.client?.off('connect', onConnect);
+          clearTimeout(connectTimer);
+          executeEmit();
+        };
+
+        this.client.on('connect', onConnect);
+      }
     });
   }
 

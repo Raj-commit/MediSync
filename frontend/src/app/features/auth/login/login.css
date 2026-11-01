@@ -16,10 +16,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-primary-light, #f0fdfa);
-  border: 1px solid var(--color-primary-border, #99f6e4);
+  background-color: var(--color-primary-light, #eff6ff);
+  border: 1px solid var(--color-primary-border, #bfdbfe);
   border-radius: 50%;
-  color: var(--color-primary, #0f766e);
+  color: var(--color-primary, #172554);
 }
 
 .auth-icon-badge svg {
