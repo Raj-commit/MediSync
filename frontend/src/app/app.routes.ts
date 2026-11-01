@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 
+import { noAuthGuard } from './core/auth/no-auth.guard';
 import { roleGuard } from './core/auth/role.guard';
 import { Login } from './features/auth/login/login';
 import { Register } from './features/auth/register/register';
@@ -8,8 +9,8 @@ import { NotFound } from './shared/not-found/not-found';
 
 export const routes: Routes = [
   { path: '', component: Home, title: 'MediSync' },
-  { path: 'login', component: Login, title: 'Login | MediSync' },
-  { path: 'register', component: Register, title: 'Register | MediSync' },
+  { path: 'login', component: Login, canActivate: [noAuthGuard], title: 'Login | MediSync' },
+  { path: 'register', component: Register, canActivate: [noAuthGuard], title: 'Register | MediSync' },
   {
     path: 'patient/doctors',
     canActivate: [roleGuard('patient')],
