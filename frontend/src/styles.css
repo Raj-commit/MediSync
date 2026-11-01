@@ -1,9 +1,86 @@
+/* ==========================================================================
+   MediSync Global Design System (src/styles.css)
+   Clean, modern healthcare aesthetic (Angular 21 standalone)
+   ========================================================================== */
+
 :root {
+  /* Brand Palette (Medical Teal) */
   --color-primary: #0f766e;
-  --color-text: #1f2937;
-  --color-bg: #f5f7f8;
-  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --color-primary-hover: #115e59;
+  --color-primary-light: #f0fdfa;
+  --color-primary-border: #99f6e4;
+
+  /* Neutral Typography & Surface Colors */
+  --color-text: #0f172a;        /* Slate Navy - Headings */
+  --color-text-body: #334155;   /* Slate Charcoal - Body Text (8.1:1 on white) */
+  --color-text-muted: #64748b;  /* Slate Secondary - Subtitles & Hints */
+  --color-bg: #f8fafc;          /* Clinical Off-White Background */
+  --color-surface: #ffffff;     /* Pure Card Surface */
+  --color-border: #e2e8f0;      /* Subtle Neutral Border */
+  --color-border-hover: #cbd5e1;/* Hovered Border */
+
+  /* Semantic Status Colors (High Contrast WCAG AA) */
+  --color-success-text: #065f46;
+  --color-success-bg: #ecfdf5;
+  --color-success-border: #a7f3d0;
+
+  --color-warning-text: #92400e;
+  --color-warning-bg: #fef3c7;
+  --color-warning-border: #fde68a;
+
+  --color-danger-text: #991b1b;
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #fecaca;
+
+  --color-info-text: #1e40af;
+  --color-info-bg: #eff6ff;
+  --color-info-border: #bfdbfe;
+
+  --color-neutral-text: #334155;
+  --color-neutral-bg: #f1f5f9;
+  --color-neutral-border: #cbd5e1;
+
+  /* Typography Stack */
+  --font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --line-height-tight: 1.25;
+  --line-height-base: 1.5;
+  --line-height-relaxed: 1.625;
+
+  /* Spacing Scale (4px / 8px Grid) */
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+
+  /* Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Depth & Shadows */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.08);
+
+  /* Transitions & Focus */
+  --focus-ring: 2px solid var(--color-primary);
+  --focus-offset: 2px;
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* ==========================================================================
+   CSS Reset & Base Elements
+   ========================================================================== */
 
 *,
 *::before,
@@ -11,36 +88,126 @@
   box-sizing: border-box;
 }
 
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
-  background: var(--color-bg);
-  color: var(--color-text);
+  background-color: var(--color-bg);
+  color: var(--color-text-body);
   font-family: var(--font-body);
-  line-height: 1.5;
+  font-size: 1rem;
+  line-height: var(--line-height-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-text);
+  font-weight: 700;
+  line-height: var(--line-height-tight);
+  margin-top: 0;
+}
+
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.15rem; }
+h4 { font-size: 1rem; }
+
+p {
+  margin-top: 0;
+  margin-bottom: var(--space-4);
 }
 
 a {
   color: var(--color-primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
 }
 
-.container {
-  max-width: 60rem;
-  margin: 0 auto;
-  padding: 1.5rem 1rem;
+a:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
 }
 
 img {
   max-width: 100%;
+  height: auto;
+  display: block;
 }
 
-/* Shared by the register and login pages */
-.card {
-  max-width: 30rem;
+/* Accessible Global Focus Outlines */
+:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+/* ==========================================================================
+   Layout & Containers
+   ========================================================================== */
+
+.container {
+  max-width: 72rem;
   margin: 0 auto;
-  padding: 1.5rem;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
+  padding: var(--space-6) var(--space-4);
+}
+
+.page-header {
+  margin-bottom: var(--space-6);
+}
+
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.page-subtitle {
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  margin: var(--space-2) 0 0;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: var(--space-3);
+  transition: color var(--transition-fast);
+}
+
+.back-link:hover,
+.back-link:focus-visible {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   Cards & Surfaces
+   ========================================================================== */
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+/* Standalone / Narrow Centered Form Cards (Login, Register, Single Form Pages) */
+section.card:not([class*="-"]),
+.card.auth-card,
+.card-narrow {
+  max-width: 32rem;
+  margin: 0 auto;
 }
 
 .card h1 {
@@ -48,75 +215,400 @@ img {
   font-size: 1.5rem;
 }
 
+.card-title {
+  margin-top: 0;
+  margin-bottom: var(--space-2);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.card-instruction,
+.card-subtitle {
+  margin-top: 0;
+  margin-bottom: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.button,
+.button-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: 0 var(--space-5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.button:hover,
+.button-primary:hover {
+  background-color: var(--color-primary-hover);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+}
+
+.button-secondary {
+  background-color: #ffffff;
+  color: var(--color-text-body);
+  border-color: var(--color-border);
+}
+
+.button-secondary:hover {
+  background-color: var(--color-bg);
+  border-color: var(--color-border-hover);
+  color: var(--color-text);
+}
+
+.button-outline {
+  background-color: transparent;
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.button-outline:hover {
+  background-color: var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+.button-danger {
+  background-color: #dc2626;
+  color: #ffffff;
+  border-color: transparent;
+}
+
+.button-danger:hover {
+  background-color: #b91c1c;
+}
+
+.button-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #991b1b;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.button-remove:hover {
+  background-color: #fee2e2;
+  color: #7f1d1d;
+}
+
+.button-sm {
+  min-height: 2.125rem;
+  padding: 0 var(--space-3);
+  font-size: 0.85rem;
+}
+
+.button:disabled,
+.button-primary:disabled,
+.button-secondary:disabled,
+.button-danger:disabled,
+.button-remove:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.button:focus-visible,
+.button-primary:focus-visible,
+.button-secondary:focus-visible,
+.button-danger:focus-visible,
+.button-remove:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+/* ==========================================================================
+   Form Fields & Controls
+   ========================================================================== */
+
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  margin-bottom: 1rem;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
 }
 
 .field label {
   font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text);
 }
 
 .field input,
+.field select,
 .field textarea {
-  min-height: 2.5rem;
-  padding: 0.5rem 0.7rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.4rem;
+  min-height: 2.625rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: #ffffff;
+  color: var(--color-text);
   font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .field input:focus-visible,
+.field select:focus-visible,
 .field textarea:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: var(--focus-ring);
   outline-offset: 1px;
+  border-color: var(--color-primary);
 }
 
 .field input.ng-touched.ng-invalid,
+.field select.ng-touched.ng-invalid,
 .field textarea.ng-touched.ng-invalid {
-  border-color: #b91c1c;
+  border-color: #dc2626;
 }
 
-.error {
-  margin: 0;
-  color: #b91c1c;
-  font-size: 0.9rem;
-}
-
-.hint {
-  margin: 0;
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled {
+  background-color: #f1f5f9;
   color: #64748b;
-  font-size: 0.85rem;
-}
-
-.button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.75rem;
-  padding: 0 1.2rem;
-  border: 0;
-  border-radius: 0.4rem;
-  background: var(--color-primary);
-  color: #fff;
-  font: inherit;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.button:disabled {
-  opacity: 0.6;
   cursor: not-allowed;
 }
 
-.button:focus-visible {
-  outline: 2px solid var(--color-text);
-  outline-offset: 2px;
+.error {
+  margin: var(--space-1) 0 0;
+  color: #b91c1c;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.hint {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
 }
 
 .card form > .error {
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
+}
+
+/* ==========================================================================
+   Badges & Status Tags
+   ========================================================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.25;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.badge-confirmed,
+.badge-success {
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
+  border-color: var(--color-success-border);
+}
+
+.badge-requested,
+.badge-pending,
+.badge-warning {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border-color: var(--color-warning-border);
+}
+
+.badge-cancelled,
+.badge-danger,
+.badge-emergency {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  border-color: var(--color-danger-border);
+}
+
+.badge-completed,
+.badge-neutral {
+  background-color: var(--color-neutral-bg);
+  color: var(--color-neutral-text);
+  border-color: var(--color-neutral-border);
+}
+
+.badge-open {
+  background-color: #f0fdf4;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.badge-booked {
+  background-color: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+/* ==========================================================================
+   Alerts & Feedback Banners
+   ========================================================================== */
+
+.alert {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin-bottom: var(--space-4);
+  border: 1px solid transparent;
+}
+
+.alert-success,
+.success-box,
+.success-banner {
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
+  border-color: var(--color-success-border);
+}
+
+.alert-error,
+.error-box {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  border-color: var(--color-danger-border);
+}
+
+.alert-warning {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border-color: var(--color-warning-border);
+}
+
+.alert-info,
+.info-box {
+  background-color: var(--color-info-bg);
+  color: var(--color-info-text);
+  border-color: var(--color-info-border);
+}
+
+/* ==========================================================================
+   Modal Dialog Shells
+   ========================================================================== */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgb(15 23 42 / 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-4);
+}
+
+.modal-dialog {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  max-width: 32rem;
+  width: 100%;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+}
+
+.modal-header {
+  margin-bottom: var(--space-3);
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.modal-body {
+  color: var(--color-text-body);
+  font-size: 0.95rem;
+  margin-bottom: var(--space-6);
+}
+
+.modal-actions,
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   Empty & State Boxes
+   ========================================================================== */
+
+.state-box,
+.empty-box {
+  text-align: center;
+  padding: var(--space-10) var(--space-6);
+  background-color: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-muted);
+  margin: var(--space-4) 0;
+}
+
+.empty-box h2,
+.empty-box h3 {
+  font-size: 1.15rem;
+  color: var(--color-text);
+  margin: 0 0 var(--space-2);
+}
+
+.empty-box p,
+.state-box p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* ==========================================================================
+   Accessibility & Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
