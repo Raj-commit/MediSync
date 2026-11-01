@@ -1,9 +1,17 @@
-<app-navbar
-  [isLoggedIn]="auth.isLoggedIn()"
-  [role]="auth.role()"
-  [unreadCount]="notificationsService.unreadCount()"
-  (logout)="onLogout()"
-/>
-<main class="container">
-  <router-outlet />
-</main>
+<div class="app-shell">
+  <app-navbar
+    [isLoggedIn]="auth.isLoggedIn()"
+    [role]="auth.role()"
+    [unreadCount]="notificationsService.unreadCount()"
+    (logout)="onLogout()"
+  />
+  <main class="container">
+    <router-outlet />
+  </main>
+  <footer class="app-footer">
+    <div class="app-footer-inner">
+      <span>&copy; 2026 MediSync Telemedicine System</span>
+      <span>College Academic Capstone Demo &bull; Advanced Web Technology</span>
+    </div>
+  </footer>
+</div>

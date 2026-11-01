@@ -1,0 +1,28 @@
+.not-found-card {
+  max-width: 28rem;
+  margin: 3rem auto;
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.not-found-code {
+  font-size: 4rem;
+  font-weight: 900;
+  color: var(--color-primary);
+  opacity: 0.35;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.not-found-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+  margin: 0 0 0.5rem;
+}
+
+.not-found-text {
+  color: var(--color-text-muted, #64748b);
+  margin: 0 0 1.5rem;
+  font-size: 0.95rem;
+}
