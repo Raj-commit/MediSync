@@ -277,6 +277,7 @@ describe('GET /api/v1/auth/me (logged in)', () => {
     const res = await me(token);
 
     expect(res.status).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-store');
     expect(res.body).toEqual({ user });
     expect(JSON.stringify(res.body)).not.toContain('passwordHash');
   });

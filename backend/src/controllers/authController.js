@@ -9,12 +9,14 @@ async function register(req, res) {
 }
 
 async function login(req, res) {
+  res.set('Cache-Control', 'no-store');
   const result = await authService.login(req.body);
   res.json(result);
 }
 
 // req.user is set by the authenticate middleware.
 function me(req, res) {
+  res.set('Cache-Control', 'no-store');
   res.json({ user: authService.getMe(req.user) });
 }
 
