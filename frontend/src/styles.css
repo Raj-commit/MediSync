@@ -4,24 +4,38 @@
    ========================================================================== */
 
 :root {
-  /* Brand Palette (Medical Teal) */
-  --color-primary: #0f766e;
-  --color-primary-hover: #115e59;
-  --color-primary-light: #f0fdfa;
-  --color-primary-border: #99f6e4;
+  /* Brand Palette (Deep Navy & Emerald Accent) */
+  --color-primary: #172554;
+  --color-primary-hover: #1e3a8a;
+  --color-primary-light: #eff6ff;
+  --color-primary-border: #bfdbfe;
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-dark: #0f172a;
+
+  /* Accent Color (Emerald Green) */
+  --color-accent: #059669;
+  --color-accent-hover: #047857;
+  --color-accent-light: #ecfdf5;
+  --color-accent-border: #a7f3d0;
+
+  /* Open Slots */
+  --color-slot-open-bg: #d1fae5;
+  --color-slot-open-border: #a7f3d0;
+  --color-slot-open-text: #065f46;
 
   /* Neutral Typography & Surface Colors */
   --color-text: #0f172a;        /* Slate Navy - Headings */
   --color-text-body: #334155;   /* Slate Charcoal - Body Text (8.1:1 on white) */
   --color-text-muted: #64748b;  /* Slate Secondary - Subtitles & Hints */
-  --color-bg: #f8fafc;          /* Clinical Off-White Background */
+  --color-bg: #f8fafc;          /* Clinical Background #F8FAFC */
   --color-surface: #ffffff;     /* Pure Card Surface */
   --color-border: #e2e8f0;      /* Subtle Neutral Border */
   --color-border-hover: #cbd5e1;/* Hovered Border */
 
   /* Semantic Status Colors (High Contrast WCAG AA) */
   --color-success-text: #065f46;
-  --color-success-bg: #ecfdf5;
+  --color-success-bg: #d1fae5;
   --color-success-border: #a7f3d0;
 
   --color-warning-text: #92400e;
@@ -259,7 +273,14 @@ section.card:not([class*="-"]),
 .button:hover,
 .button-primary:hover {
   background-color: var(--color-primary-hover);
+  color: #ffffff;
   box-shadow: var(--shadow-sm);
+  text-decoration: none;
+}
+
+a.button:hover,
+a.button-primary:hover {
+  color: #ffffff;
   text-decoration: none;
 }
 
@@ -275,6 +296,11 @@ section.card:not([class*="-"]),
   color: var(--color-text);
 }
 
+a.button-secondary:hover {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
 .button-outline {
   background-color: transparent;
   color: var(--color-primary);
@@ -284,6 +310,12 @@ section.card:not([class*="-"]),
 .button-outline:hover {
   background-color: var(--color-primary-light);
   border-color: var(--color-primary);
+  color: var(--color-primary-dark);
+}
+
+a.button-outline:hover {
+  color: var(--color-primary-dark);
+  text-decoration: none;
 }
 
 .button-danger {
@@ -294,6 +326,12 @@ section.card:not([class*="-"]),
 
 .button-danger:hover {
   background-color: #b91c1c;
+  color: #ffffff;
+}
+
+a.button-danger:hover {
+  color: #ffffff;
+  text-decoration: none;
 }
 
 .button-remove {
@@ -939,28 +977,32 @@ section.card:not([class*="-"]),
   align-items: center;
   justify-content: center;
   padding: var(--space-2) var(--space-3);
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background-color: var(--color-slot-open-bg, #d1fae5);
+  border: 1px solid var(--color-slot-open-border, #a7f3d0);
   border-radius: var(--radius-md);
   font-family: inherit;
   font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text);
+  font-weight: 600;
+  color: var(--color-slot-open-text, #065f46);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .slot-btn:hover {
-  border-color: var(--color-primary);
-  background-color: var(--color-primary-50);
+  border-color: var(--color-accent, #059669);
+  background-color: #a7f3d0;
 }
 
 .slot-btn.is-selected {
   border-color: var(--color-primary);
-  background-color: var(--color-primary-50);
-  color: var(--color-primary-dark);
-  box-shadow: 0 0 0 2px var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+  box-shadow: 0 0 0 2px var(--color-accent, #059669);
   font-weight: 600;
+}
+
+.slot-btn.is-selected .slot-check {
+  color: #ffffff;
 }
 
 .slot-btn:focus-visible {
@@ -970,7 +1012,7 @@ section.card:not([class*="-"]),
 
 .slot-check {
   font-size: 0.75rem;
-  color: var(--color-primary-dark);
+  color: var(--color-slot-open-text, #065f46);
   margin-top: 2px;
 }
 
