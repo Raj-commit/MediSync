@@ -9,7 +9,20 @@ const Appointment = require('../src/models/Appointment');
 const { signToken } = require('../src/utils/token');
 
 async function seed() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to run test chat appointment script in production (NODE_ENV=production).');
+  }
+
   const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/medisync';
+  const isLocal =
+    uri.includes('127.0.0.1') || uri.includes('localhost') || uri.includes('medisync_test');
+
+  if (!isLocal) {
+    throw new Error(
+      'Refusing to run test chat appointment script on a non-local or remote database.'
+    );
+  }
+
   await mongoose.connect(uri);
   console.log('Connected to MongoDB at', uri);
 

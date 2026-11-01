@@ -87,7 +87,7 @@ describe('Availability Component', () => {
     expect(page.textContent).toContain('No upcoming availability');
   });
 
-  it.skip('ensures booked slots cannot be removed and have locked indicators', async () => {
+  it('ensures booked slots cannot be removed and have locked indicators', async () => {
     fixture.detectChanges();
 
     const getReq = http.expectOne(AVAILABILITY_URL);
@@ -118,7 +118,7 @@ describe('Availability Component', () => {
     expect(bookedItem.textContent).toContain('Booked');
   });
 
-  it.skip('removes an open slot when remove button is clicked', async () => {
+  it('removes an open slot when remove button is clicked', async () => {
     fixture.detectChanges();
 
     const getReq = http.expectOne(AVAILABILITY_URL);
@@ -144,7 +144,7 @@ describe('Availability Component', () => {
     expect(page.textContent).toContain('Unsaved Changes');
   });
 
-  it.skip('never sends booked slots in the PUT request body when saving', async () => {
+  it('never sends booked slots in the PUT request body when saving', async () => {
     fixture.detectChanges();
 
     const getReq = http.expectOne(AVAILABILITY_URL);
@@ -200,7 +200,7 @@ describe('Availability Component', () => {
     expect(page.textContent).toContain('Your availability has been saved successfully.');
   });
 
-  it.skip('converts local generator times to UTC ISO strings ending in Z', async () => {
+  it('converts local generator times to UTC ISO strings ending in Z', async () => {
     fixture.detectChanges();
 
     const getReq = http.expectOne(AVAILABILITY_URL);
@@ -233,7 +233,7 @@ describe('Availability Component', () => {
     putReq.flush({ slots: [] });
   });
 
-  it.skip('validates time ranges before generating (end time before start time)', async () => {
+  it('validates time ranges before generating (end time before start time)', async () => {
     fixture.detectChanges();
 
     const getReq = http.expectOne(AVAILABILITY_URL);
@@ -252,7 +252,7 @@ describe('Availability Component', () => {
     expect(page.textContent).toContain('End time must be after start time.');
   });
 
-  it.skip('validates against generating slots in the past', async () => {
+  it('validates against generating slots in the past', async () => {
     fixture.detectChanges();
 
     const getReq = http.expectOne(AVAILABILITY_URL);
@@ -271,7 +271,7 @@ describe('Availability Component', () => {
     expect(page.textContent).toContain('Cannot create slots in the past.');
   });
 
-  it.skip('shows server error message as written on PUT rejection', async () => {
+  it('shows server error message as written on PUT rejection', async () => {
     fixture.detectChanges();
 
     const getReq = http.expectOne(AVAILABILITY_URL);

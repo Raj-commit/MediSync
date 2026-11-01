@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 
 import { routes } from '../../../app.routes';
 import { environment } from '../../../../environments/environment';
@@ -223,5 +223,45 @@ describe('DoctorSearch Component', () => {
     expect(route?.title).toBe('Find a doctor | MediSync');
     expect(route?.canActivate).toBeDefined();
     expect(route?.canActivate?.length).toBeGreaterThan(0);
+  });
+
+  it('pre-populates specialisation from query parameter on init and queries doctors', async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [DoctorSearch],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParamMap: convertToParamMap({ specialisation: 'Cardiology' }),
+            },
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const customFixture = TestBed.createComponent(DoctorSearch);
+    const customComponent = customFixture.componentInstance;
+    const customHttp = TestBed.inject(HttpTestingController);
+
+    customFixture.detectChanges();
+
+    const req = customHttp.expectOne(
+      (r) =>
+        r.url === DOCTORS_URL &&
+        r.params.get('page') === '1' &&
+        r.params.get('specialisation') === 'Cardiology',
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush(mockDoctorsResponse);
+
+    await customFixture.whenStable();
+    customFixture.detectChanges();
+
+    expect(customComponent.searchForm.get('specialisation')?.value).toBe('Cardiology');
+    customHttp.verify();
   });
 });

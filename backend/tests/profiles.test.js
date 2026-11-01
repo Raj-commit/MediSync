@@ -148,6 +148,7 @@ describe('GET /api/v1/users/me', () => {
     const res = await getMe(token);
 
     expect(res.status).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-store');
     expect(res.body.user).toBeDefined();
     expect(res.body.user.id).toBeDefined();
     expect(res.body.user.name).toBe(rawData.name);

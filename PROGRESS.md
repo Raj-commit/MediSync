@@ -2,22 +2,26 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-11-01  by: Hitanshu
+Last updated: 2026-11-01  by: Alis
 
 ## Current work
 
-- Branch: `feature/admin-user-management-ui`
-- Feature: admin-user-management (UI complete, frontend)
-- Last thing finished: Complete frontend UI implementation for FR-19 (UC-14) Admin User Management in `frontend/`:
-  - Route `/admin/users` protected by `roleGuard('admin')` with title `Manage users | MediSync`, linked from `/admin` dashboard;
-  - Dedicated `AdminUsersService` handling `getUsers()` and `updateUserStatus()` with strict typing, in-place list updates, and automatic in-memory clearance on logout;
-  - Responsive semantic HTML `<table>` with `<caption>` and `<th scope="col">` on desktop, transforming into accessible stacked cards on mobile (`<= 768px`) with `data-label` attributes;
-  - Search controls (search input up to 100 chars, explicit Search button, Enter key support, duplicate request prevention) and Role/Status dropdown filters resetting pagination to page 1;
-  - Accessible deactivation and activation modal dialogs (`role="dialog"`, `aria-modal="true"`, `aria-labelledby`, focus trap, Escape key support) with initial focus on Cancel and explicit warnings about immediate session termination and appointment clarification;
-  - In-place server-confirmed updates using `{ user }` response without optimistic mutations or full-page reloads, with in-dialog error display on failure and polite screen reader announcements (`aria-live="polite"`);
-  - Strict NFR-08 medical privacy hygiene: zero persistence in `localStorage`, `sessionStorage`, or URL query parameters; all search/filter/user state cleared on `ngOnDestroy` and logout;
-  - 14 Vitest unit tests in `admin-users.spec.ts` + 6 tests in `admin.service.spec.ts` passing; full frontend suite (41 test files, 327 tests) passing; production build (`ng build`) passing.
-- Next step: Open PR for `feature/admin-user-management-ui` into `main`; proceed to Feature 15 (polish-testing).
+- Branch: `feature/polish-testing`
+- Feature: polish-testing (Feature 15)
+- Last thing finished: Completed Feature 15 polish & testing fixes across the entire codebase against NFR-01 to NFR-12 and the AGENTS.md Definition of Done:
+  - Guarded `backend/scripts/create-test-chat-appointment.js` with `NODE_ENV === 'production'` and remote DB URI checks (`A2`);
+  - Removed duplicate `medicalRecordSchema.index({ patient: 1 }, { unique: true })` from `MedicalRecord.js` (`A4`);
+  - Added `Cache-Control: no-store` to profile and auth endpoints (`login`, `me`, `getProfile`, `updateProfile`) with regression tests (`A7`);
+  - Fixed Angular compiler `NG8107` unnecessary optional chaining warnings in patient and doctor medical record templates (`A15`);
+  - Created `noAuthGuard` and attached to `/login` and `/register` to redirect logged-in users to their role dashboard with tests (`A8`);
+  - Added `specialisation` (and `name`) query parameter pre-population to `DoctorSearch` on initialization with tests (`A9`);
+  - Resolved `backend/package-lock.json` security vulnerabilities via `npm audit fix` while keeping all 375 backend tests passing (`A6`);
+  - Un-skipped and verified all 7 previously skipped doctor availability unit tests in `availability.spec.ts` (11/11 passing) (`A3`);
+  - Created safe, idempotent demo data script `backend/scripts/seed-demo-data.js` with strict production and non-local DB guards (`SEED_DEMO_DATA=true`), seeding 2 synthetic doctors, 2 synthetic patients, availability slots, appointments, medical records, and prescriptions;
+  - Expanded `README.md` with complete setup instructions, prerequisites, seed commands, demo accounts table, test commands, and troubleshooting guide (`A13`);
+  - Created `docs/TEST_PLAN.md` with end-to-end user journeys and non-functional security verification checklists (`A14`);
+  - Documented accepted college project limitations (A1, A5, A10, A11, A12, A16) in Known Issues.
+- Next step: Submit pull request for `feature/polish-testing` into `main`.
 - Blockers or open questions: none
 
 ## Feature status
@@ -40,7 +44,7 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 12 | prescription-pdf | done | n/a | Uday Raj | Merged in PR #17. Django endpoint POST /api/prescriptions/pdf with ReportLab, timing-safe X-Service-Key check, escaping, and tests |
 | 13 | symptom-checker | done | done | Alis (Django), Uday Raj (API) & Riyank (UI) | FR-17 (UC-12). Rule-based symptom assessment microservice in Django, rate-limited and secured Express API, and accessible single-page Angular UI at /patient/symptom-checker with emergency alerts, chip entry, expandable history, and full Vitest coverage |
 | 14 | admin-user-management | done | done | Hitanshu (API & UI) | FR-19 (UC-14). GET /admin/users, PATCH /admin/users/:id, accessible UI at /admin/users with responsive cards, explicit search, role/status filters, deactivation modal dialog with warning and focus trap, server-confirmed in-place updates, zero storage retention, 14 Vitest tests |
-| 15 | polish-testing | not started | n/a | | |
+| 15 | polish-testing | done | n/a | Alis | Feature 15 polish & testing against NFR-01 to NFR-12, DOD: guarded scripts, removed duplicate schema index, Cache-Control no-store on sensitive endpoints, resolved NG8107 template warnings, noAuthGuard on /login and /register, ?specialisation= query support in doctor search, resolved package-lock vulnerabilities, un-skipped 7 availability tests, created idempotent demo data script, expanded README and added docs/TEST_PLAN.md |
 
 ## Decisions made
 
@@ -195,6 +199,11 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-11-01 | Accessible confirmation modal dialogs: `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, focus trap, and Escape key support for activation and deactivation; initial keyboard focus set to Cancel button to prevent accidental submissions; deactivation modal explicitly warns that session termination is immediate and that existing appointments are not cancelled | Prevents accidental destructive actions and satisfies WCAG 2.1 keyboard accessibility guidelines |
 | 2026-11-01 | Server-confirmed in-place updates: updates user status in-place strictly from the server's `{ user }` response envelope; never optimistically updates UI; leaves modal open with clear error message on failure; announces status changes via polite live region (`aria-live="polite"`) | Guarantees UI consistency with database state and avoids full-page reloads |
 | 2026-11-01 | NFR-08 privacy & memory hygiene: strictly in-memory signals for search queries, filter state, and user records. Zero persistence in `localStorage`, `sessionStorage`, or URL query params. Automatically wiped on component destroy (`ngOnDestroy`) and on admin logout | Adheres to strict medical privacy standards and prevents administrative user data lingering in browser storage |
+| 2026-11-01 | Sensitive endpoints Cache-Control: `res.set('Cache-Control', 'no-store')` added to auth (`login`, `me`) and user profiles (`getProfile`, `updateProfile`) | NFR-08 medical privacy hygiene: prevents intermediate proxies and browser caches from retaining personal or health tokens and profile details |
+| 2026-11-01 | Logged-in user redirection (`noAuthGuard`): Functional guard on `/login` and `/register` redirects authenticated visitors to `dashboardPathFor(user.role)` | Solves finding A8 / Known Issue 1; prevents logged-in users from seeing redundant auth forms |
+| 2026-11-01 | Doctor search query pre-population: `DoctorSearch` checks `ActivatedRoute.snapshot.queryParamMap` for `specialisation` (and `name`) on init | Solves finding A9 / Known Issue 4; pre-filters doctor listing when navigated from symptom checker |
+| 2026-11-01 | Demo data script: `backend/scripts/seed-demo-data.js` requires `SEED_DEMO_DATA=true`, refuses to run in production or against non-local DBs, and performs idempotent upserts without destructive operations | Enables safe local demo evaluation with 2 doctors, 2 patients, slots, appointments, records, and prescriptions |
+| 2026-11-01 | College project accepted limitations: A1 (production env URL), A5 (user role+isActive compound index), A10 (CSS budget warnings), A11 (Mongoose deprecated `new: true` option), A12 (minimal CI workflow), and A16 (linters) documented as accepted limitations | Scoped strictly to polish-testing DOD without introducing breaking contract changes or unapproved dependencies |
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
 - Added the optional env variable `ADMIN_PHONE` (default placeholder +910000000000), because the User model requires a phone for every user, including the admin.
@@ -209,11 +218,16 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 - Added `patient` and `doctor` (ObjectId references to `User`) to the `Prescription` model for direct, indexed role scoping and query performance, and `pdfData` (Buffer, select: false) for MongoDB binary storage.
 ## Known issues
 
-- A logged-in user can still open `/login` and `/register` by typing the address. They are not redirected to their dashboard yet.
 - Backend tests pass `runtimeAdapters: { os: require('os') }` in tests/helpers/db.js because of the MongoDB driver bug NODE-7832 (driver 7.6 and later, under Jest). Remove it once a fixed driver is released.
 - AGENTS.md section 6 lists the internal Django endpoint as `POST /prescriptions/pdf`, whereas the Django application mounts it under `POST /api/prescriptions/pdf` (defined in `ai-service/config/urls.py`). Backend uses the real mounted path `/api/prescriptions/pdf`.
-- Doctor search page (/patient/doctors) does not inspect URL query parameters (e.g. ?specialisation=); the "Find a doctor" action on the symptom checker navigates to /patient/doctors where the patient can select a doctor.
 - Existing appointments involving deactivated users: Deactivating an account does not cancel or modify future appointments or release slots; an inactive doctor cannot log in or attend consultations, and an inactive patient cannot log in to attend or manage appointments. Appointments remain in their current status until handled through an appropriate separate clinical or administrative workflow.
+- [Accepted College Project Limitation A1] Environment production API URL: `frontend/src/environments/environment.prod.ts` currently targets `http://localhost:5000/api/v1`. To be updated to the final cloud domain when deployment hosting target is configured.
+- [Accepted College Project Limitation A5] User collection compound index: `User` collection does not have a compound index on `{ role: 1, isActive: 1 }`. Acceptable for the college project dataset size.
+- [Accepted College Project Limitation A10] CSS component budget warnings: Angular production build reports small bundle size budget warnings (> 4 kB) on `chat.css`, `video.css`, `admin-users.css`, and `doctor-patient-records.css`. Styles remain modular, performant, and correctly scoped.
+- [Accepted College Project Limitation A11] Mongoose deprecation warning: Backend console outputs deprecation warnings during find-and-modify operations (`the new option for findOneAndUpdate() and findOneAndReplace() is deprecated. Use returnDocument: 'after' instead`). Existing code operates correctly; migration can be deferred to a future Mongoose upgrade.
+- [Accepted College Project Limitation A12] CI pipeline: GitHub Actions workflow deferred in favor of automated local runners (`npm test`, `npx jest --runInBand`, and `manage.py test`) for all three services.
+- [Accepted College Project Limitation A16] Static code linters: ESLint, Ruff, and Black configurations omitted to avoid unapproved dev dependencies; code formatting maintained manually and via Prettier.
+
 ## How to hand over to another AI
 
 Start a new chat or tool and paste the contents of these three files in this order: `AGENTS.md`, `PROJECT_CONTEXT.md`, `PROGRESS.md`. If the tool can read the repo, point it at the repo root instead. Then send:
