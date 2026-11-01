@@ -1,13 +1,133 @@
-<section class="card">
-  <h1>Patient dashboard</h1>
-  <p>Welcome, {{ auth.user()?.name }}.</p>
-  <p>Your appointments, medical records and prescriptions will appear here.</p>
-  <div class="dashboard-actions">
-    <a routerLink="/patient/doctors" class="button">Find a doctor</a>
-    <a routerLink="/patient/appointments" class="button button-secondary">My appointments</a>
-    <a routerLink="/patient/records" class="button button-secondary">My medical records</a>
-    <a routerLink="/patient/prescriptions" class="button button-secondary">My prescriptions</a>
-    <a routerLink="/patient/symptom-checker" class="button button-secondary">AI Symptom Checker</a>
-    <a routerLink="/patient/profile" class="button button-secondary">My profile</a>
+<section class="card dashboard-card">
+  <header class="dashboard-header">
+    <div class="dashboard-badge-row">
+      <span class="badge badge-success">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+        </svg>
+        Patient Portal
+      </span>
+    </div>
+    <div class="dashboard-title-group">
+      <h1>Patient dashboard</h1>
+      <p class="welcome-lead">Welcome, {{ auth.user()?.name }}.</p>
+      <p class="dashboard-intro">Your appointments, medical records and prescriptions will appear here.</p>
+    </div>
+  </header>
+
+  <div class="dashboard-actions dashboard-grid" role="region" aria-label="Quick actions">
+    <article class="action-card">
+      <div class="action-card-header">
+        <div class="action-icon-wrap action-icon-primary" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+          </svg>
+        </div>
+        <div class="action-info">
+          <h2>Find a Doctor</h2>
+          <p>Browse verified specialists, view available time slots, and schedule consultations.</p>
+        </div>
+      </div>
+      <div class="action-card-footer">
+        <a routerLink="/patient/doctors" class="button button-primary">Find a doctor</a>
+      </div>
+    </article>
+
+    <article class="action-card">
+      <div class="action-card-header">
+        <div class="action-icon-wrap" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
+            <line x1="16" x2="16" y1="2" y2="6"></line>
+            <line x1="8" x2="8" y1="2" y2="6"></line>
+            <line x1="3" x2="21" y1="10" y2="10"></line>
+          </svg>
+        </div>
+        <div class="action-info">
+          <h2>Appointments</h2>
+          <p>Track upcoming video consultations, check appointment status, or manage schedules.</p>
+        </div>
+      </div>
+      <div class="action-card-footer">
+        <a routerLink="/patient/appointments" class="button button-secondary">My appointments</a>
+      </div>
+    </article>
+
+    <article class="action-card">
+      <div class="action-card-header">
+        <div class="action-icon-wrap" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+        </div>
+        <div class="action-info">
+          <h2>Medical Records</h2>
+          <p>Access your confidential clinical records, clinician notes, and diagnosis history.</p>
+        </div>
+      </div>
+      <div class="action-card-footer">
+        <a routerLink="/patient/records" class="button button-secondary">My medical records</a>
+      </div>
+    </article>
+
+    <article class="action-card">
+      <div class="action-card-header">
+        <div class="action-icon-wrap" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+            <path d="m10 15 5-3-5-3v6Z"></path>
+            <path d="M12 7v2"></path>
+            <path d="M12 15v2"></path>
+          </svg>
+        </div>
+        <div class="action-info">
+          <h2>Prescriptions</h2>
+          <p>Review active medications, dosage instructions, and access downloadable PDF prescriptions.</p>
+        </div>
+      </div>
+      <div class="action-card-footer">
+        <a routerLink="/patient/prescriptions" class="button button-secondary">My prescriptions</a>
+      </div>
+    </article>
+
+    <article class="action-card">
+      <div class="action-card-header">
+        <div class="action-icon-wrap action-icon-accent" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path>
+          </svg>
+        </div>
+        <div class="action-info">
+          <h2>AI Symptom Checker</h2>
+          <p>Get instant preliminary guidance on health symptoms before speaking with a doctor.</p>
+        </div>
+      </div>
+      <div class="action-card-footer">
+        <a routerLink="/patient/symptom-checker" class="button button-secondary">AI Symptom Checker</a>
+      </div>
+    </article>
+
+    <article class="action-card">
+      <div class="action-card-header">
+        <div class="action-icon-wrap" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+        <div class="action-info">
+          <h2>Profile &amp; Settings</h2>
+          <p>Manage your contact phone, home address, and personal health profile details.</p>
+        </div>
+      </div>
+      <div class="action-card-footer">
+        <a routerLink="/patient/profile" class="button button-secondary">My profile</a>
+      </div>
+    </article>
   </div>
 </section>
