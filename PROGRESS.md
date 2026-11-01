@@ -6,16 +6,18 @@ Last updated: 2026-11-01  by: Hitanshu
 
 ## Current work
 
-- Branch: `feature/admin-user-management-api`
-- Feature: admin-user-management (API complete, backend)
-- Last thing finished: FR-19 (UC-14) admin user management backend API implementation in `backend/`:
-  - `GET /api/v1/admin/users`: lists patient and doctor accounts with role and status filtering, regex-escaped case-insensitive search by name and email, pagination (`page`, `limit` 1..50, `total`, `totalPages`), sorted newest first (`createdAt: -1, _id: -1`), strict exclusion of admin accounts;
-  - `PATCH /api/v1/admin/users/:id`: idempotent account activation/deactivation (`{ isActive: boolean }`), atomic database update restricted to patient and doctor roles only (protecting admin accounts), self-deactivation prevention for admins;
-  - Strict data safety & privacy: safe response shaping returning `{ id, name, email, phone, role, isActive, createdAt }` for everyone, plus `specialisations` and `qualification` for doctors; `passwordHash`, `dateOfBirth`, `address`, and all clinical/medical records are strictly excluded; `Cache-Control: no-store` header on all responses;
-  - Immediate API blocking (Option d1): deactivated accounts are immediately rejected with 403 `ACCOUNT_DISABLED` across all protected endpoints, login is refused with 403 `ACCOUNT_DISABLED`, inactive doctors are excluded from search/booking, and socket consultation handlers re-verify active status;
-  - Appointment immutability: existing appointments, slots, and clinical records involving deactivated users remain untouched;
-  - 28 automated integration tests in `backend/tests/admin.test.js` covering all 26 required scenarios and privacy rules; all 17 backend test suites (375 tests) passing.
-- Next step: Open PR for `feature/admin-user-management-api` into `main`; then start `feature/admin-user-management-ui`.
+- Branch: `feature/admin-user-management-ui`
+- Feature: admin-user-management (UI complete, frontend)
+- Last thing finished: Complete frontend UI implementation for FR-19 (UC-14) Admin User Management in `frontend/`:
+  - Route `/admin/users` protected by `roleGuard('admin')` with title `Manage users | MediSync`, linked from `/admin` dashboard;
+  - Dedicated `AdminUsersService` handling `getUsers()` and `updateUserStatus()` with strict typing, in-place list updates, and automatic in-memory clearance on logout;
+  - Responsive semantic HTML `<table>` with `<caption>` and `<th scope="col">` on desktop, transforming into accessible stacked cards on mobile (`<= 768px`) with `data-label` attributes;
+  - Search controls (search input up to 100 chars, explicit Search button, Enter key support, duplicate request prevention) and Role/Status dropdown filters resetting pagination to page 1;
+  - Accessible deactivation and activation modal dialogs (`role="dialog"`, `aria-modal="true"`, `aria-labelledby`, focus trap, Escape key support) with initial focus on Cancel and explicit warnings about immediate session termination and appointment clarification;
+  - In-place server-confirmed updates using `{ user }` response without optimistic mutations or full-page reloads, with in-dialog error display on failure and polite screen reader announcements (`aria-live="polite"`);
+  - Strict NFR-08 medical privacy hygiene: zero persistence in `localStorage`, `sessionStorage`, or URL query parameters; all search/filter/user state cleared on `ngOnDestroy` and logout;
+  - 14 Vitest unit tests in `admin-users.spec.ts` + 6 tests in `admin.service.spec.ts` passing; full frontend suite (41 test files, 327 tests) passing; production build (`ng build`) passing.
+- Next step: Open PR for `feature/admin-user-management-ui` into `main`; proceed to Feature 15 (polish-testing).
 - Blockers or open questions: none
 
 ## Feature status
@@ -36,8 +38,8 @@ Statuses: `not started`, `in progress`, `in review`, `done`.
 | 10 | medical-records | done | done | Riyank (API), Uday Raj (UI) | FR-13 (UC-09). GET /records/me, GET /records/patient/:patientId, POST /records/patient/:patientId/entries with atomic upsert, age derivation, zero PII leak, anti-enumeration, and no-store caching. Separate patient and doctor routes, confirmation dialog, character counters, plain-text XSS defense, full Vitest coverage |
 | 11 | prescriptions | done | done | Alis (API), Uday Raj (UI) | FR-14, FR-15, FR-16 (UC-10, UC-11). POST /prescriptions, GET /prescriptions, GET /prescriptions/:id/pdf. Full frontend UI at /patient/prescriptions and /doctor/appointments/:id/prescription with PDF download, dynamic medicines FormArray, confirmation modal, 409 recovery, 287 frontend tests passing |
 | 12 | prescription-pdf | done | n/a | Uday Raj | Merged in PR #17. Django endpoint POST /api/prescriptions/pdf with ReportLab, timing-safe X-Service-Key check, escaping, and tests |
-| 13 | symptom-checker | done | done | Alis (Django, API & UI) | FR-17 (UC-12). Rule-based symptom assessment microservice in Django, rate-limited and secured Express API, and accessible single-page Angular UI at /patient/symptom-checker with emergency alerts, chip entry, expandable history, and full Vitest coverage |
-| 14 | admin-user-management | done | not started | Hitanshu (API) | FR-19 (UC-14). GET /admin/users, PATCH /admin/users/:id, strict role guards, safe projection, immediate token block, 28 tests passing |
+| 13 | symptom-checker | done | done | Alis (Django), Uday Raj (API) & Riyank (UI) | FR-17 (UC-12). Rule-based symptom assessment microservice in Django, rate-limited and secured Express API, and accessible single-page Angular UI at /patient/symptom-checker with emergency alerts, chip entry, expandable history, and full Vitest coverage |
+| 14 | admin-user-management | done | done | Hitanshu (API & UI) | FR-19 (UC-14). GET /admin/users, PATCH /admin/users/:id, accessible UI at /admin/users with responsive cards, explicit search, role/status filters, deactivation modal dialog with warning and focus trap, server-confirmed in-place updates, zero storage retention, 14 Vitest tests |
 | 15 | polish-testing | not started | n/a | | |
 
 ## Decisions made
@@ -187,6 +189,12 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-11-01 | Account activation/deactivation PATCH shape (Choice c): `PATCH /api/v1/admin/users/:id` requires `{ isActive: boolean }` and returns `{ user }` in identical safe shape; strictly validates real boolean, rejects extra keys; idempotent (returns 200) | Standard REST property update, strict type safety, predictable response envelope |
 | 2026-11-01 | Admin accounts untouchable: Admin accounts never appear in `GET /admin/users` and cannot be modified via `PATCH /admin/users/:id` (atomic `User.findOneAndUpdate` scoped to `role: { $in: ['patient', 'doctor'] }` returning 404 for admin IDs); admins cannot deactivate their own account (400 `VALIDATION_ERROR`) | Prevents accidental or hostile lockouts of administrators and preserves system administrative access |
 | 2026-11-01 | Immediate API blocking deactivation effects (Choice d1): Deactivating an account immediately invalidates existing JWT access (403 `ACCOUNT_DISABLED` via `authenticate`), prevents login, excludes inactive doctors from search/booking, and socket consultation handlers re-verify active status; no forced socket disconnects and zero appointment or slot modifications | Immediate security enforcement across all protected endpoints without cascading side-effects into clinical appointments |
+| 2026-11-01 | Admin user management route & navigation: `/admin/users` protected by `roleGuard('admin')` with title `Manage users | MediSync`, linked directly from `/admin` dashboard | Follows Angular 21 route conventions and provides centralized admin access |
+| 2026-11-01 | Responsive user listing: semantic HTML `<table>` with `<caption>` and `<th scope="col">` on desktop (> 768px), collapsing via CSS into stacked cards on mobile (<= 768px) with `data-label` attributes without table duplication | Meets WCAG 2.1 AA and responsive standards without maintaining two separate DOM implementations |
+| 2026-11-01 | Search controls: explicit Search button and Enter key submit, skipping duplicate requests for unchanged queries and avoiding keystroke debounce requests to reduce server load; Clear filters button resets input, role, and status filters | Efficient, predictable admin search UX aligned with backend search limits |
+| 2026-11-01 | Accessible confirmation modal dialogs: `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, focus trap, and Escape key support for activation and deactivation; initial keyboard focus set to Cancel button to prevent accidental submissions; deactivation modal explicitly warns that session termination is immediate and that existing appointments are not cancelled | Prevents accidental destructive actions and satisfies WCAG 2.1 keyboard accessibility guidelines |
+| 2026-11-01 | Server-confirmed in-place updates: updates user status in-place strictly from the server's `{ user }` response envelope; never optimistically updates UI; leaves modal open with clear error message on failure; announces status changes via polite live region (`aria-live="polite"`) | Guarantees UI consistency with database state and avoids full-page reloads |
+| 2026-11-01 | NFR-08 privacy & memory hygiene: strictly in-memory signals for search queries, filter state, and user records. Zero persistence in `localStorage`, `sessionStorage`, or URL query params. Automatically wiped on component destroy (`ngOnDestroy`) and on admin logout | Adheres to strict medical privacy standards and prevents administrative user data lingering in browser storage |
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
 - Added the optional env variable `ADMIN_PHONE` (default placeholder +910000000000), because the User model requires a phone for every user, including the admin.
