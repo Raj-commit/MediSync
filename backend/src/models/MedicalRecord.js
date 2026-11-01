@@ -46,8 +46,6 @@ const medicalRecordSchema = new mongoose.Schema(
   }
 );
 
-// Enforce exactly one MedicalRecord document per patient (AGENTS.md section 5)
-medicalRecordSchema.index({ patient: 1 }, { unique: true });
 
 const MedicalRecord = mongoose.model('MedicalRecord', medicalRecordSchema);
 
