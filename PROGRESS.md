@@ -2,26 +2,22 @@
 
 Living file. Update it at the end of every work session and in every PR. It is what lets a different AI (or teammate) pick up exactly where you stopped.
 
-Last updated: 2026-11-01  by: Alis
+Last updated: 2026-11-01  by: Uday Raj
 
 ## Current work
 
-- Branch: `feature/polish-testing`
-- Feature: polish-testing (Feature 15)
-- Last thing finished: Completed Feature 15 polish & testing fixes across the entire codebase against NFR-01 to NFR-12 and the AGENTS.md Definition of Done:
-  - Guarded `backend/scripts/create-test-chat-appointment.js` with `NODE_ENV === 'production'` and remote DB URI checks (`A2`);
-  - Removed duplicate `medicalRecordSchema.index({ patient: 1 }, { unique: true })` from `MedicalRecord.js` (`A4`);
-  - Added `Cache-Control: no-store` to profile and auth endpoints (`login`, `me`, `getProfile`, `updateProfile`) with regression tests (`A7`);
-  - Fixed Angular compiler `NG8107` unnecessary optional chaining warnings in patient and doctor medical record templates (`A15`);
-  - Created `noAuthGuard` and attached to `/login` and `/register` to redirect logged-in users to their role dashboard with tests (`A8`);
-  - Added `specialisation` (and `name`) query parameter pre-population to `DoctorSearch` on initialization with tests (`A9`);
-  - Resolved `backend/package-lock.json` security vulnerabilities via `npm audit fix` while keeping all 375 backend tests passing (`A6`);
-  - Un-skipped and verified all 7 previously skipped doctor availability unit tests in `availability.spec.ts` (11/11 passing) (`A3`);
-  - Created safe, idempotent demo data script `backend/scripts/seed-demo-data.js` with strict production and non-local DB guards (`SEED_DEMO_DATA=true`), seeding 2 synthetic doctors, 2 synthetic patients, availability slots, appointments, medical records, and prescriptions;
-  - Expanded `README.md` with complete setup instructions, prerequisites, seed commands, demo accounts table, test commands, and troubleshooting guide (`A13`);
-  - Created `docs/TEST_PLAN.md` with end-to-end user journeys and non-functional security verification checklists (`A14`);
-  - Documented accepted college project limitations (A1, A5, A10, A11, A12, A16) in Known Issues.
-- Next step: Submit pull request for `feature/polish-testing` into `main`.
+- Branch: `feature/ui-polish`
+- Feature: UI Visual Polish & Design System Upgrade (serving NFR-05, NFR-11, NFR-12)
+- Last thing finished: Completed comprehensive frontend visual polish across all 23 templates and shells:
+  - Established design tokens and shared UI components in `src/styles.css` (WCAG AA clinical teal palette, typography scale, buttons, badges, alert boxes, cards, dialogs, state containers, reduced motion).
+  - Modernized app shell, navigation bar, landing page, login, registration, and 404 pages.
+  - Upgraded patient, doctor, and admin dashboards into responsive clinical portals with action tiles and health iconography.
+  - Overhauled doctor discovery, appointment booking, patient appointments, doctor appointments, and availability management.
+  - Streamlined medical records, digital prescriptions, AI symptom checker, and profile views.
+  - Modernized consultation chat, WebRTC video consultation room, notifications center, and admin users management table with mobile table-to-card responsiveness.
+  - Successfully eliminated all 8 component CSS budget warnings (> 4 kB) from `angular.json` by moving shared component styles into `src/styles.css`, achieving a clean 0-warning production build.
+  - All 42 Vitest test files and 339 tests passing with zero failures.
+- Next step: Submit pull request for `feature/ui-polish` into `main`.
 - Blockers or open questions: none
 
 ## Feature status
@@ -203,6 +199,10 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 | 2026-11-01 | Logged-in user redirection (`noAuthGuard`): Functional guard on `/login` and `/register` redirects authenticated visitors to `dashboardPathFor(user.role)` | Solves finding A8 / Known Issue 1; prevents logged-in users from seeing redundant auth forms |
 | 2026-11-01 | Doctor search query pre-population: `DoctorSearch` checks `ActivatedRoute.snapshot.queryParamMap` for `specialisation` (and `name`) on init | Solves finding A9 / Known Issue 4; pre-filters doctor listing when navigated from symptom checker |
 | 2026-11-01 | Demo data script: `backend/scripts/seed-demo-data.js` requires `SEED_DEMO_DATA=true`, refuses to run in production or against non-local DBs, and performs idempotent upserts without destructive operations | Enables safe local demo evaluation with 2 doctors, 2 patients, slots, appointments, records, and prescriptions |
+| 2026-11-01 | Design system direction: Modern Clinical Healthcare (clean white surfaces, teal brand `#0f766e`, slate navy text `#0f172a`, charcoal `#334155`, 10px radius) | Professional, trustworthy medical visual identity for college presentation |
+| 2026-11-01 | Typography: System font stack retained without external Google Fonts request | Zero external third-party network requests; privacy-respecting and fully offline-capable |
+| 2026-11-01 | Shared design system in `src/styles.css`: tokens, buttons, badges, cards, modals, tabs, and tables centralized globally | Eliminates all 8 component CSS budget warnings (> 4 kB) from `angular.json` while keeping stylesheets modular |
+| 2026-11-01 | Accessibility & WCAG AA: text contrast >= 4.5:1, visible 2px focus rings on all controls, touch targets >= 44px, status conveyed with text/icons, and reduced motion suppression | Strictly serves NFR-05 (usability), NFR-11 (accessibility), and NFR-12 (responsiveness) |
 | 2026-11-01 | College project accepted limitations: A1 (production env URL), A5 (user role+isActive compound index), A10 (CSS budget warnings), A11 (Mongoose deprecated `new: true` option), A12 (minimal CI workflow), and A16 (linters) documented as accepted limitations | Scoped strictly to polish-testing DOD without introducing breaking contract changes or unapproved dependencies |
 ## Deviations from AGENTS.md or PROJECT_CONTEXT.md
 
@@ -223,7 +223,7 @@ Record every decision so another AI does not reopen it. Add a line per decision.
 - Existing appointments involving deactivated users: Deactivating an account does not cancel or modify future appointments or release slots; an inactive doctor cannot log in or attend consultations, and an inactive patient cannot log in to attend or manage appointments. Appointments remain in their current status until handled through an appropriate separate clinical or administrative workflow.
 - [Accepted College Project Limitation A1] Environment production API URL: `frontend/src/environments/environment.prod.ts` currently targets `http://localhost:5000/api/v1`. To be updated to the final cloud domain when deployment hosting target is configured.
 - [Accepted College Project Limitation A5] User collection compound index: `User` collection does not have a compound index on `{ role: 1, isActive: 1 }`. Acceptable for the college project dataset size.
-- [Accepted College Project Limitation A10] CSS component budget warnings: Angular production build reports small bundle size budget warnings (> 4 kB) on `chat.css`, `video.css`, `admin-users.css`, and `doctor-patient-records.css`. Styles remain modular, performant, and correctly scoped.
+- [Resolved in feature/ui-polish] CSS component budget warnings: All 8 component stylesheet budget warnings (> 4 kB) eliminated by moving shared design system primitives to src/styles.css. Production build now passes with 0 warnings.
 - [Accepted College Project Limitation A11] Mongoose deprecation warning: Backend console outputs deprecation warnings during find-and-modify operations (`the new option for findOneAndUpdate() and findOneAndReplace() is deprecated. Use returnDocument: 'after' instead`). Existing code operates correctly; migration can be deferred to a future Mongoose upgrade.
 - [Accepted College Project Limitation A12] CI pipeline: GitHub Actions workflow deferred in favor of automated local runners (`npm test`, `npx jest --runInBand`, and `manage.py test`) for all three services.
 - [Accepted College Project Limitation A16] Static code linters: ESLint, Ruff, and Black configurations omitted to avoid unapproved dev dependencies; code formatting maintained manually and via Prettier.
