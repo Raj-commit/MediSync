@@ -1,0 +1,362 @@
+<main class="admin-users-container">
+  <!-- Top navigation breadcrumb / header -->
+  <div class="page-header">
+    <nav aria-label="Breadcrumb" class="breadcrumb">
+      <a routerLink="/admin" class="back-link">← Back to Admin Dashboard</a>
+    </nav>
+    <div class="title-row">
+      <div>
+        <h1>User Account Management</h1>
+        <p class="subtitle">View and manage patient and doctor accounts</p>
+      </div>
+      <div class="count-badge" aria-live="polite">
+        {{ countSummary() }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Notification Banner -->
+  @if (actionSuccess()) {
+    <div class="success-banner" role="status" aria-live="polite">
+      <p class="success-text">{{ actionSuccess() }}</p>
+      <button
+        type="button"
+        class="button button-outline button-sm"
+        (click)="actionSuccess.set(null)"
+        aria-label="Dismiss message"
+      >
+        Dismiss
+      </button>
+    </div>
+  }
+
+  <!-- Search and Filters Bar -->
+  <section class="filters-card" aria-label="Filter and search accounts">
+    <form class="filters-form" (submit)="$event.preventDefault(); onSearchSubmit()">
+      <!-- Search Input -->
+      <div class="filter-group search-group">
+        <label for="admin-search-input" class="filter-label">Search</label>
+        <div class="search-input-wrapper">
+          <input
+            id="admin-search-input"
+            type="search"
+            class="input-search"
+            placeholder="Search by name or email..."
+            maxlength="100"
+            [value]="searchInput()"
+            (input)="searchInput.set($any($event.target).value)"
+            [disabled]="loading() || submittingAction()"
+          />
+          <button
+            type="submit"
+            class="button button-primary button-sm button-search"
+            [disabled]="loading() || submittingAction()"
+          >
+            Search
+          </button>
+        </div>
+      </div>
+
+      <!-- Role Dropdown Filter -->
+      <div class="filter-group">
+        <label for="admin-role-filter" class="filter-label">Role</label>
+        <select
+          id="admin-role-filter"
+          class="filter-select"
+          [value]="roleFilter()"
+          (change)="onRoleFilterChange($any($event.target).value)"
+          [disabled]="loading() || submittingAction()"
+        >
+          <option value="all">All Roles</option>
+          <option value="patient">Patients</option>
+          <option value="doctor">Doctors</option>
+        </select>
+      </div>
+
+      <!-- Status Dropdown Filter -->
+      <div class="filter-group">
+        <label for="admin-status-filter" class="filter-label">Status</label>
+        <select
+          id="admin-status-filter"
+          class="filter-select"
+          [value]="statusFilter()"
+          (change)="onStatusFilterChange($any($event.target).value)"
+          [disabled]="loading() || submittingAction()"
+        >
+          <option value="all">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+
+      <!-- Clear Filters Button -->
+      @if (hasActiveFilters()) {
+        <div class="filter-group clear-group">
+          <button
+            type="button"
+            class="button button-outline button-sm button-clear"
+            (click)="clearFilters()"
+            [disabled]="loading() || submittingAction()"
+          >
+            Clear filters
+          </button>
+        </div>
+      }
+    </form>
+  </section>
+
+  <!-- Screen reader live announcement region -->
+  <div class="sr-only" role="status" aria-live="polite">
+    {{ liveAnnouncement() }}
+  </div>
+
+  <!-- Error Alert -->
+  @if (errorMessage()) {
+    <div class="error-banner" role="alert">
+      <p class="error-text">{{ errorMessage() }}</p>
+      <button type="button" class="button button-outline button-sm" (click)="loadUsers()">
+        Retry
+      </button>
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="state-box" aria-busy="true">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Loading user accounts...</p>
+    </div>
+  } @else if (users().length === 0 && !errorMessage()) {
+    <!-- Empty State -->
+    <div class="state-box empty-state">
+      @if (hasActiveFilters()) {
+        <p class="state-title">No accounts match your search or filters</p>
+        <p class="state-desc">Try clearing your filters or using a different search query.</p>
+        <button
+          type="button"
+          class="button button-primary button-sm button-empty-clear"
+          (click)="clearFilters()"
+        >
+          Clear filters
+        </button>
+      } @else {
+        <p class="state-title">No accounts found</p>
+        <p class="state-desc">There are no patient or doctor accounts in the system.</p>
+      }
+    </div>
+  } @else if (users().length > 0) {
+    <!-- Users List Table / Responsive Cards -->
+    <div class="table-card">
+      <table class="users-table">
+        <caption class="sr-only">
+          List of registered patient and doctor accounts with status and management actions
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Contact</th>
+            <th scope="col">Role</th>
+            <th scope="col">Status</th>
+            <th scope="col">Registered</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of users(); track user.id) {
+            <tr class="user-row">
+              <!-- Name & Doctor Details -->
+              <td data-label="Name" class="cell-name">
+                <span class="user-name">{{ user.name }}</span>
+                @if (user.role === 'doctor' && doctorDetails(user)) {
+                  <span class="doctor-meta">{{ doctorDetails(user) }}</span>
+                }
+                <span class="user-id">ID: {{ user.id }}</span>
+              </td>
+
+              <!-- Contact Info -->
+              <td data-label="Contact" class="cell-contact">
+                <div class="contact-email">{{ user.email }}</div>
+                <div class="contact-phone">{{ user.phone }}</div>
+              </td>
+
+              <!-- Role -->
+              <td data-label="Role" class="cell-role">
+                <span class="role-badge role-{{ user.role }}">
+                  {{ user.role === 'doctor' ? 'Doctor' : 'Patient' }}
+                </span>
+              </td>
+
+              <!-- Status (Text + Icon, not color alone) -->
+              <td data-label="Status" class="cell-status">
+                <span
+                  class="status-badge"
+                  [class.status-active]="user.isActive"
+                  [class.status-inactive]="!user.isActive"
+                >
+                  <span class="status-icon" aria-hidden="true">
+                    {{ user.isActive ? '✓' : '⊘' }}
+                  </span>
+                  <span class="status-text">
+                    {{ user.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </span>
+              </td>
+
+              <!-- Registered Date -->
+              <td data-label="Registered" class="cell-date">
+                {{ formatDate(user.createdAt) }}
+              </td>
+
+              <!-- Activate / Deactivate Action Buttons -->
+              <td data-label="Actions" class="cell-actions">
+                @if (user.isActive) {
+                  <button
+                    type="button"
+                    class="button button-danger button-sm"
+                    [disabled]="loading() || submittingAction()"
+                    (click)="openDeactivateModal(user, $event)"
+                  >
+                    Deactivate
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="button button-secondary button-sm"
+                    [disabled]="loading() || submittingAction()"
+                    (click)="openActivateModal(user, $event)"
+                  >
+                    Activate
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    @if (pagination() && pagination()!.totalPages > 1) {
+      <nav aria-label="User accounts pagination" class="pagination-nav">
+        <button
+          type="button"
+          class="button button-outline button-sm"
+          [disabled]="page() <= 1 || loading() || submittingAction()"
+          (click)="goToPage(page() - 1)"
+        >
+          ← Previous
+        </button>
+
+        <span class="pagination-info" aria-current="page">
+          Page {{ pagination()!.page }} of {{ pagination()!.totalPages }}
+        </span>
+
+        <button
+          type="button"
+          class="button button-outline button-sm"
+          [disabled]="page() >= pagination()!.totalPages || loading() || submittingAction()"
+          (click)="goToPage(page() + 1)"
+        >
+          Next →
+        </button>
+      </nav>
+    }
+  }
+
+  <!-- Accessible Modal Confirmation Dialog for Activate / Deactivate -->
+  @if (selectedUser(); as target) {
+    <div class="modal-backdrop" (click)="closeModal()" tabindex="-1">
+      <div
+        #modalRef
+        class="modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        [attr.aria-labelledby]="
+          actionType() === 'deactivate' ? 'deactivate-dialog-title' : 'activate-dialog-title'
+        "
+        (click)="$event.stopPropagation()"
+        (keydown)="onModalKeydown($event)"
+      >
+        @if (actionType() === 'deactivate') {
+          <h2 id="deactivate-dialog-title">Deactivate Account</h2>
+          <p>
+            Are you sure you want to deactivate the account for
+            <strong>{{ target.name }}</strong> ({{ target.email }})?
+          </p>
+
+          <div class="modal-alert-box modal-warning-box">
+            <p class="modal-warning-text">
+              <strong>Notice:</strong> Deactivation takes effect immediately. The user's active
+              session will be invalidated, preventing further API requests and blocking future
+              logins.
+            </p>
+            <p class="modal-warning-subtext">
+              Existing appointments will not be cancelled automatically.
+            </p>
+          </div>
+        } @else {
+          <h2 id="activate-dialog-title">Reactivate Account</h2>
+          <p>
+            Are you sure you want to reactivate the account for
+            <strong>{{ target.name }}</strong> ({{ target.email }})?
+          </p>
+
+          <div class="modal-alert-box modal-info-box">
+            <p class="modal-info-text">
+              The user will regain full access and will be permitted to log in to MediSync
+              immediately.
+            </p>
+          </div>
+        }
+
+        <!-- In-Modal Error Banner -->
+        @if (actionError()) {
+          <div class="error-banner modal-error-banner" role="alert">
+            <p class="error-text">{{ actionError() }}</p>
+          </div>
+        }
+
+        <!-- Dialog Action Buttons -->
+        <div class="modal-actions">
+          <button
+            #cancelBtn
+            type="button"
+            class="button button-outline"
+            [disabled]="submittingAction()"
+            (click)="closeModal()"
+          >
+            Cancel
+          </button>
+
+          @if (actionType() === 'deactivate') {
+            <button
+              type="button"
+              class="button button-danger"
+              [disabled]="submittingAction()"
+              (click)="confirmStatusUpdate()"
+            >
+              @if (submittingAction()) {
+                Deactivating...
+              } @else {
+                Confirm Deactivation
+              }
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="button button-primary"
+              [disabled]="submittingAction()"
+              (click)="confirmStatusUpdate()"
+            >
+              @if (submittingAction()) {
+                Activating...
+              } @else {
+                Confirm Activation
+              }
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</main>

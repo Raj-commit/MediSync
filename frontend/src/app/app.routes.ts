@@ -142,6 +142,13 @@ export const routes: Routes = [
     title: 'Video consultation | MediSync',
   },
   {
+    path: 'admin/users',
+    canActivate: [roleGuard('admin')],
+    loadComponent: () =>
+      import('./features/admin/admin-users/admin-users').then((m) => m.AdminUsers),
+    title: 'Manage users | MediSync',
+  },
+  {
     path: 'admin',
     canActivate: [roleGuard('admin')],
     loadComponent: () =>
