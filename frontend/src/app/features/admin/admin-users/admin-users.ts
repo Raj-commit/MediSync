@@ -1,4 +1,13 @@
-import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  OnDestroy,
+  OnInit,
+  signal,
+  ViewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import {
@@ -19,6 +28,11 @@ import { AdminUsersService } from '../../../core/admin/admin.service';
 export class AdminUsers implements OnInit, OnDestroy {
   protected readonly adminService = inject(AdminUsersService);
 
+  @ViewChild('modalRef') modalRef?: ElementRef<HTMLDivElement>;
+  @ViewChild('cancelBtn') cancelBtnRef?: ElementRef<HTMLButtonElement>;
+
+  private triggerElement: HTMLElement | null = null;
+
   readonly loading = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
   readonly page = signal<number>(1);
@@ -29,6 +43,13 @@ export class AdminUsers implements OnInit, OnDestroy {
   readonly activeSearch = signal<string>('');
   readonly roleFilter = signal<UserRoleFilter>('all');
   readonly statusFilter = signal<UserStatusFilter>('all');
+
+  // Modal confirmation dialog state
+  readonly selectedUser = signal<AdminUser | null>(null);
+  readonly actionType = signal<'activate' | 'deactivate' | null>(null);
+  readonly submittingAction = signal<boolean>(false);
+  readonly actionError = signal<string | null>(null);
+  readonly actionSuccess = signal<string | null>(null);
 
   // Status message for screen readers
   readonly liveAnnouncement = signal<string>('');
@@ -67,6 +88,11 @@ export class AdminUsers implements OnInit, OnDestroy {
     this.roleFilter.set('all');
     this.statusFilter.set('all');
     this.page.set(1);
+    this.selectedUser.set(null);
+    this.actionType.set(null);
+    this.actionError.set(null);
+    this.actionSuccess.set(null);
+    this.triggerElement = null;
     this.adminService.clearMemory();
   }
 
@@ -170,6 +196,116 @@ export class AdminUsers implements OnInit, OnDestroy {
     }
     this.page.set(newPage);
     this.loadUsers();
+  }
+
+  /**
+   * Opens the deactivation modal for a specific user.
+   * Remembers the triggering element and sets initial focus to Cancel.
+   */
+  openDeactivateModal(user: AdminUser, event?: Event): void {
+    this.triggerElement =
+      (event?.target as HTMLElement) || (document.activeElement as HTMLElement) || null;
+    this.selectedUser.set(user);
+    this.actionType.set('deactivate');
+    this.actionError.set(null);
+    this.actionSuccess.set(null);
+    setTimeout(() => this.cancelBtnRef?.nativeElement?.focus(), 0);
+  }
+
+  /**
+   * Opens the activation confirmation modal for a specific user.
+   * Remembers the triggering element and sets initial focus to Cancel.
+   */
+  openActivateModal(user: AdminUser, event?: Event): void {
+    this.triggerElement =
+      (event?.target as HTMLElement) || (document.activeElement as HTMLElement) || null;
+    this.selectedUser.set(user);
+    this.actionType.set('activate');
+    this.actionError.set(null);
+    this.actionSuccess.set(null);
+    setTimeout(() => this.cancelBtnRef?.nativeElement?.focus(), 0);
+  }
+
+  /**
+   * Closes the confirmation modal and restores focus to the triggering element.
+   */
+  closeModal(): void {
+    if (this.submittingAction()) {
+      return; // Prevent closing while API request is in progress
+    }
+    this.selectedUser.set(null);
+    this.actionType.set(null);
+    this.actionError.set(null);
+    if (this.triggerElement && typeof this.triggerElement.focus === 'function') {
+      this.triggerElement.focus();
+    }
+    this.triggerElement = null;
+  }
+
+  /**
+   * Submits the activation/deactivation request via AdminUsersService.
+   * On success: updates user in-place, shows success notification, and closes dialog.
+   * On error: leaves dialog open and displays error message.
+   */
+  confirmStatusUpdate(): void {
+    const user = this.selectedUser();
+    const action = this.actionType();
+    if (!user || !action || this.submittingAction()) {
+      return;
+    }
+
+    const newStatus = action === 'activate';
+    this.submittingAction.set(true);
+    this.actionError.set(null);
+
+    this.adminService.updateUserStatus(user.id, newStatus).subscribe({
+      next: (res) => {
+        this.submittingAction.set(false);
+        const actionVerb = newStatus ? 'activated' : 'deactivated';
+        const msg = `Account for ${res.user.name} has been ${actionVerb}.`;
+        this.actionSuccess.set(msg);
+        this.liveAnnouncement.set(msg);
+        this.closeModal();
+      },
+      error: (err) => {
+        this.submittingAction.set(false);
+        if (err.status === 0) {
+          this.actionError.set('Cannot reach the server. Please check your connection.');
+        } else {
+          this.actionError.set(
+            err.error?.message || `Failed to ${action} account. Please try again.`,
+          );
+        }
+      },
+    });
+  }
+
+  /**
+   * Handles keyboard focus trap and Escape key within the modal dialog.
+   */
+  onModalKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.closeModal();
+      return;
+    }
+
+    if (event.key === 'Tab') {
+      const focusable = this.modalRef?.nativeElement?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        last.focus();
+        event.preventDefault();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        first.focus();
+        event.preventDefault();
+      }
+    }
   }
 
   formatDate(dateString: string): string {
