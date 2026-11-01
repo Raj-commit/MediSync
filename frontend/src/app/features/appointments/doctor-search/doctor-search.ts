@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import {
   DoctorSummary,
@@ -18,6 +18,7 @@ import { AppointmentsService } from '../../../core/appointments/appointments.ser
 export class DoctorSearch implements OnInit {
   private readonly appointmentsService = inject(AppointmentsService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly route = inject(ActivatedRoute);
 
   readonly searchForm = this.fb.group({
     name: [''],
@@ -35,6 +36,16 @@ export class DoctorSearch implements OnInit {
   protected readonly error = signal<string | null>(null);
 
   ngOnInit(): void {
+    const specialisation = this.route.snapshot.queryParamMap.get('specialisation');
+    const name = this.route.snapshot.queryParamMap.get('name');
+
+    if (specialisation && specialisation.trim() !== '') {
+      this.searchForm.patchValue({ specialisation: specialisation.trim() });
+    }
+    if (name && name.trim() !== '') {
+      this.searchForm.patchValue({ name: name.trim() });
+    }
+
     this.loadDoctors(1);
   }
 
